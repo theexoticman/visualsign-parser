@@ -10,9 +10,9 @@ on:
     #   - ".github/**"
     #   - "src/**"
   pull_request:
-    paths:
-      - ".github/**"
-      - "src/**"
+    # paths:
+    #   - ".github/**"
+    #   - "src/**"
   workflow_dispatch: # Allows manual invocation
 
 jobs:
