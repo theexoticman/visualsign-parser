@@ -1,16 +1,10 @@
 out/parser_host/index.json: \
-	$(shell git ls-files images/parser_host src) \
-	out/common/index.json
+	$(shell git ls-files images/parser_host src)
 	$(call build,parser_host)
 
 out/parser_app/index.json: \
-	$(shell git ls-files images/parser_app src) \
-	out/common/index.json
+	$(shell git ls-files images/parser_app src)
 	$(call build,parser_app)
-
-out/common/index.json: \
-	images/common/Containerfile
-	$(call build,common)
 
 define build_context
 $$( \
