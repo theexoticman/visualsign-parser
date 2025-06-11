@@ -104,12 +104,8 @@ pub struct Metadata {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ParsedTransactionPayload {
-    #[prost(message, repeated, tag = "1")]
-    pub transaction_metadata: ::prost::alloc::vec::Vec<Metadata>,
-    #[prost(message, repeated, tag = "2")]
-    pub method_metadata: ::prost::alloc::vec::Vec<Metadata>,
-    #[prost(string, tag = "3")]
-    pub unsigned_payload: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub signable_payload: ::prost::alloc::string::String,
 }
 #[cfg_attr(
     feature = "serde_derive",

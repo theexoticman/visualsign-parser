@@ -22,17 +22,10 @@ async fn parser_e2e() {
             .into_inner();
 
         let parsed_transaction = parse_response.parsed_transaction.unwrap().payload.unwrap();
-
-        assert_eq!(parsed_transaction.transaction_metadata.len(), 1);
-        assert_eq!(parsed_transaction.method_metadata.len(), 1);
-
-        let tx_meta = &parsed_transaction.transaction_metadata[0];
-        assert_eq!(tx_meta.key, "tx_foo".to_string());
-        assert_eq!(tx_meta.value, "tx_bar".to_string());
-
-        let method_meta = &parsed_transaction.method_metadata[0];
-        assert_eq!(method_meta.key, "method_baz".to_string());
-        assert_eq!(method_meta.value, "method_quux".to_string());
+        assert_eq!(
+            parsed_transaction.signable_payload,
+            "fill in parsed signable payload"
+        );
     }
 
     integration::Builder::new().execute(test).await

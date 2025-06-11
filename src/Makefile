@@ -8,7 +8,7 @@ PARSER_INNER_SOCKET_PATH ?= /tmp/inner_parser.sock
 ROOT := $(shell git rev-parse --show-toplevel)
 
 .PHONY: all
-all:
+all: generated
 	make build
 
 .PHONY: build
