@@ -137,6 +137,52 @@ pub struct Signature {
     #[prost(string, tag = "4")]
     pub signature: ::prost::alloc::string::String,
 }
+/// Chain represents supported blockchain networks
+#[cfg_attr(
+    feature = "serde_derive",
+    derive(::serde::Serialize, ::serde::Deserialize),
+    serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "serde_derive", serde(untagged))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum Chain {
+    Unspecified = 0,
+    Bitcoin = 1,
+    Ethereum = 2,
+    Solana = 3,
+    Sui = 4,
+    /// Custom for extensibility
+    Custom = 999,
+}
+impl Chain {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Chain::Unspecified => "CHAIN_UNSPECIFIED",
+            Chain::Bitcoin => "CHAIN_BITCOIN",
+            Chain::Ethereum => "CHAIN_ETHEREUM",
+            Chain::Solana => "CHAIN_SOLANA",
+            Chain::Sui => "CHAIN_SUI",
+            Chain::Custom => "CHAIN_CUSTOM",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "CHAIN_UNSPECIFIED" => Some(Self::Unspecified),
+            "CHAIN_BITCOIN" => Some(Self::Bitcoin),
+            "CHAIN_ETHEREUM" => Some(Self::Ethereum),
+            "CHAIN_SOLANA" => Some(Self::Solana),
+            "CHAIN_SUI" => Some(Self::Sui),
+            "CHAIN_CUSTOM" => Some(Self::Custom),
+            _ => None,
+        }
+    }
+}
 #[cfg_attr(
     feature = "serde_derive",
     derive(::serde::Serialize, ::serde::Deserialize),

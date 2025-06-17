@@ -1,0 +1,50 @@
+//! Conversion functions between the generated parser Chain enum and the visualsign registry Chain enum.
+use visualsign::registry::Chain as RegistryChain;
+
+use generated::parser::Chain as ProtoChain;
+
+pub(crate) fn proto_to_registry(proto: ProtoChain) -> RegistryChain {
+    match proto {
+        ProtoChain::Solana => RegistryChain::Solana,
+        ProtoChain::Ethereum => RegistryChain::Ethereum,
+        ProtoChain::Sui => RegistryChain::Sui,
+        _ => RegistryChain::Custom("unspecified".into()),
+    }
+}
+
+pub(crate) fn registry_to_proto(registry: RegistryChain) -> ProtoChain {
+    match registry {
+        RegistryChain::Solana => ProtoChain::Solana,
+        RegistryChain::Ethereum => ProtoChain::Ethereum,
+        RegistryChain::Sui => ProtoChain::Sui,
+        _ => ProtoChain::Unspecified,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_conversions() {
+        // Test supported chains round-trip
+        for (proto, registry) in [
+            (ProtoChain::Solana, RegistryChain::Solana),
+            (ProtoChain::Ethereum, RegistryChain::Ethereum),
+            (ProtoChain::Sui, RegistryChain::Sui),
+        ] {
+            assert_eq!(proto_to_registry(proto), registry);
+            assert_eq!(registry_to_proto(registry.clone()), proto);
+        }
+
+        // Test unsupported map to unspecified
+        assert_eq!(
+            registry_to_proto(RegistryChain::Bitcoin),
+            ProtoChain::Unspecified
+        );
+        assert_eq!(
+            proto_to_registry(ProtoChain::Unspecified),
+            RegistryChain::Custom("unspecified".into())
+        );
+    }
+}

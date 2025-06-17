@@ -10,6 +10,8 @@ pub mod service;
 
 pub mod errors;
 
+pub mod chain_conversion;
+
 mod routes {
     pub(crate) mod parse;
 }

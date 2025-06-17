@@ -10,6 +10,22 @@ service ParserService {
   rpc Parse(ParseRequest) returns (ParseResponse);
 }
 
+// Chain represents supported blockchain networks
+enum Chain {
+  CHAIN_UNSPECIFIED = 0;
+  CHAIN_BITCOIN = 1;
+  CHAIN_ETHEREUM = 2;
+  CHAIN_SOLANA = 3;
+  CHAIN_SUI = 4;
+  
+  // Reserve space for future chains
+  reserved 5 to 998;
+  
+  // Custom for extensibility
+  CHAIN_CUSTOM = 999;
+}
+
+
 // This is a bit odd, but needed for the QOS host.
 // (the QOS host receives messages which can be either parser responses or QOS-level responses)
 // TODO: can we remove the need for these?
