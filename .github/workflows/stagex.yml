@@ -17,10 +17,6 @@ on:
       - "images/**"
       - "Makefile"
   workflow_dispatch: # Allows manual invocation
-permissions:
-  contents: read
-  packages: read  # Needed for private repos
-
 
 jobs:
   parser:

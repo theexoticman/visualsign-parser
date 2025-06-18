@@ -1,5 +1,5 @@
 use generated::health::{AppHealthRequest, AppHealthResponse};
-use generated::parser::ParseRequest;
+use generated::parser::{Chain, ParseRequest};
 use integration::TestArgs;
 
 // XXX: if you're iterating on these tests and the underlying code, make sure you run `cargo build --all`.
@@ -11,6 +11,7 @@ async fn parser_e2e() {
     async fn test(test_args: TestArgs) {
         let parse_request = ParseRequest {
             unsigned_payload: "unsignedpayload".to_string(),
+            chain: Chain::Unspecified as i32,
         };
 
         let parse_response = test_args
