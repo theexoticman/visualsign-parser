@@ -27,7 +27,7 @@ endef
 GITHUB_TOKEN ?= $(shell echo $$GITHUB_TOKEN)
 
 DOCKER_BUILD_ARGS = --build-arg VERSION=$(VERSION)
-DOCKER_BUILD_ARGS += $(if $(GITHUB_TOKEN),--build-arg GITHUB_TOKEN=$(GITHUB_TOKEN))
+DOCKER_BUILD_ARGS += $(if $(GITHUB_TOKEN),--secret id=github_token,src=<(echo "$(GITHUB_TOKEN)"))
 
 ,:=,
 define build
