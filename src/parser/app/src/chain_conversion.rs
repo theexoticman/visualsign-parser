@@ -12,18 +12,18 @@ pub(crate) fn proto_to_registry(proto: ProtoChain) -> RegistryChain {
     }
 }
 
-pub(crate) fn registry_to_proto(registry: RegistryChain) -> ProtoChain {
-    match registry {
-        RegistryChain::Solana => ProtoChain::Solana,
-        RegistryChain::Ethereum => ProtoChain::Ethereum,
-        RegistryChain::Sui => ProtoChain::Sui,
-        _ => ProtoChain::Unspecified,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    pub(crate) fn registry_to_proto(registry: &RegistryChain) -> ProtoChain {
+        match registry {
+            RegistryChain::Solana => ProtoChain::Solana,
+            RegistryChain::Ethereum => ProtoChain::Ethereum,
+            RegistryChain::Sui => ProtoChain::Sui,
+            _ => ProtoChain::Unspecified,
+        }
+    }
 
     #[test]
     fn test_conversions() {
@@ -34,12 +34,12 @@ mod tests {
             (ProtoChain::Sui, RegistryChain::Sui),
         ] {
             assert_eq!(proto_to_registry(proto), registry);
-            assert_eq!(registry_to_proto(registry.clone()), proto);
+            assert_eq!(registry_to_proto(&registry), proto);
         }
 
         // Test unsupported map to unspecified
         assert_eq!(
-            registry_to_proto(RegistryChain::Bitcoin),
+            registry_to_proto(&RegistryChain::Bitcoin),
             ProtoChain::Unspecified
         );
         assert_eq!(
