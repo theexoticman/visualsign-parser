@@ -25,7 +25,7 @@ async fn parser_e2e() {
         let parsed_transaction = parse_response.parsed_transaction.unwrap().payload.unwrap();
         assert_eq!(
             parsed_transaction.signable_payload,
-            "fill in parsed signable payload"
+            "{\"Fields\":[{\"Type\":\"text_v2\",\"FallbackText\":\"Unspecified Chain\",\"Label\":\"Network\",\"TextV2\":{\"Text\":\"Unspecified Chain\"}},{\"Type\":\"text_v2\",\"FallbackText\":\"Raw Data\",\"Label\":\"Raw Data\",\"TextV2\":{\"Text\":\"unsignedpayload\"}}],\"PayloadType\":\"fill in parsed signable payload\",\"Title\":\"Unspecified Transaction\",\"Version\":\"0\"}"
         );
     }
 

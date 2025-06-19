@@ -2222,6 +2222,7 @@ dependencies = [
  "sha2 0.10.9",
  "visualsign",
  "visualsign-solana",
+ "visualsign-unspecified",
 ]
 
 [[package]]
@@ -5610,7 +5611,6 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "visualsign"
 version = "0.1.0"
-source = "git+https://github.com/anchorageoss/visualsign-rs.git?rev=f29e61383bcd3cd809b0930b5d19a41391497ef8#f29e61383bcd3cd809b0930b5d19a41391497ef8"
 dependencies = [
  "pretty_assertions",
  "serde",
@@ -5633,6 +5633,13 @@ dependencies = [
  "spl-associated-token-account",
  "spl-stake-pool",
  "spl-token 7.0.0",
+ "visualsign",
+]
+
+[[package]]
+name = "visualsign-unspecified"
+version = "0.1.0"
+dependencies = [
  "visualsign",
 ]
 

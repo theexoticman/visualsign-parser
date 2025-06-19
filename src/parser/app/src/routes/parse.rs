@@ -9,14 +9,17 @@ use generated::{
 };
 use qos_crypto::sha_256;
 use qos_p256::P256Pair;
-use visualsign_solana::SolanaTransactionWrapper;
 
 // TODO(pg): this may not be the right place for this
 fn create_registry() -> visualsign::registry::TransactionConverterRegistry {
     let mut registry = visualsign::registry::TransactionConverterRegistry::new();
-    registry.register::<SolanaTransactionWrapper, _>(
+    registry.register::<visualsign_solana::SolanaTransactionWrapper, _>(
         visualsign::registry::Chain::Solana,
         visualsign_solana::SolanaVisualSignConverter,
+    );
+    registry.register::<visualsign_unspecified::UnspecifiedTransactionWrapper, _>(
+        visualsign::registry::Chain::Unspecified,
+        visualsign_unspecified::UnspecifiedVisualSignConverter,
     );
     registry
 }

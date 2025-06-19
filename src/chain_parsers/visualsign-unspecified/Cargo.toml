@@ -1,0 +1,7 @@
+[package]
+name = "visualsign-unspecified"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+visualsign = {workspace = true}

@@ -8,7 +8,8 @@ pub(crate) fn proto_to_registry(proto: ProtoChain) -> RegistryChain {
         ProtoChain::Solana => RegistryChain::Solana,
         ProtoChain::Ethereum => RegistryChain::Ethereum,
         ProtoChain::Sui => RegistryChain::Sui,
-        _ => RegistryChain::Custom("unspecified".into()),
+        ProtoChain::Unspecified => RegistryChain::Unspecified,
+        _ => RegistryChain::Custom("custom_unknown".into()),
     }
 }
 
@@ -18,6 +19,7 @@ mod tests {
 
     pub(crate) fn registry_to_proto(registry: &RegistryChain) -> ProtoChain {
         match registry {
+            RegistryChain::Unspecified => ProtoChain::Unspecified,
             RegistryChain::Solana => ProtoChain::Solana,
             RegistryChain::Ethereum => ProtoChain::Ethereum,
             RegistryChain::Sui => ProtoChain::Sui,
@@ -44,7 +46,13 @@ mod tests {
         );
         assert_eq!(
             proto_to_registry(ProtoChain::Unspecified),
-            RegistryChain::Custom("unspecified".into())
+            RegistryChain::Unspecified,
+        );
+
+        // Test custom chains
+        assert_eq!(
+            proto_to_registry(ProtoChain::Custom),
+            RegistryChain::Custom("custom_unknown".into()),
         );
     }
 }
