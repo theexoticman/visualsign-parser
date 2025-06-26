@@ -7,17 +7,17 @@
 #![allow(clippy::missing_errors_doc, clippy::module_name_repetitions)]
 
 use borsh::BorshDeserialize;
+use generated::grpc::health::v1::{
+    HealthCheckRequest as K8HealthCheckRequest, HealthCheckResponse as K8HealthCheckResponse,
+    health_check_response::ServingStatus as K8ServingStatus,
+    health_server::{Health as K8HealthService, HealthServer as K8HealthServer},
+};
 use generated::health::health_check_service_server::{
     HealthCheckService, HealthCheckServiceServer,
 };
 use generated::health::{
     AppHealthRequest, AppHealthResponse, EnclaveHealthRequest, EnclaveHealthResponse,
     HostHealthRequest, HostHealthResponse,
-};
-use generated::health::{
-    HealthCheckRequest as K8HealthCheckRequest, HealthCheckResponse as K8HealthCheckResponse,
-    health_check_response::ServingStatus as K8ServingStatus,
-    health_server::{Health as K8HealthService, HealthServer as K8HealthServer},
 };
 use generated::tonic;
 use host_primitives::enclave_client_timeout;

@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &[
                 "../proto/parser/parser.proto",
                 "../proto/health/rpc.proto",
-                "../proto/health/k8s.proto",
+                "../proto/grpc/health/v1/health.proto",
                 "../proto/vendor/google/rpc/status.proto",
                 "../proto/vendor/google/rpc/code.proto",
             ],

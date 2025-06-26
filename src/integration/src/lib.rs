@@ -16,9 +16,11 @@ use std::time::Duration;
 use std::{fs, future::Future, panic::AssertUnwindSafe, process::Command};
 
 use futures::future::FutureExt;
+use generated::grpc::health::v1::{HealthCheckRequest, HealthCheckResponse};
+use generated::grpc::health::v1::{
+    health_check_response::ServingStatus, health_client::HealthClient,
+};
 use generated::health::health_check_service_client::HealthCheckServiceClient;
-use generated::health::{HealthCheckRequest, HealthCheckResponse};
-use generated::health::{health_check_response::ServingStatus, health_client::HealthClient};
 use generated::parser::parser_service_client::ParserServiceClient;
 
 use host_primitives::GRPC_MAX_RECV_MSG_SIZE;

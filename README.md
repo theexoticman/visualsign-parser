@@ -38,6 +38,12 @@ If everything works you'll get a response like this:
 }
 ```
 
+You can also manually exercise health checks. This is what Kubernetes will use to gauge whether the host is healthy or not:
+
+```
+grpcurl -plaintext -d '{"service":""}' localhost:44020 grpc.health.v1.Health/Check
+```
+
 ## Building parser OCI containers
 
 This repository uses [StageX](https://stagex.tools) to build OCI containers. To build these locally, you'll need Docker > 26 and `containerd` for OCI compatibility:
