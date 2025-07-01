@@ -243,7 +243,7 @@ fn convert_to_visual_sign_payload(
         let data = hex::encode(&instruction.data);
 
         let decoded_data = match program_id.as_str() {
-            "11111111111111111111111111111111" => {
+            id if id == solana_sdk::system_program::id().to_string() => {
                 match parse_system_instruction(&instruction.data) {
                     Ok(instruction_type) => format_system_instruction(&instruction_type),
                     Err(err) => {
