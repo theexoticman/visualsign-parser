@@ -500,10 +500,11 @@ fn format_ata_instruction(instruction: &AssociatedTokenAccountInstruction) -> St
 
 fn format_associated_token_instruction(
     instruction: &AssociatedTokenAccountInstruction,
+    program_id: &str,
 ) -> SignablePayloadFieldListLayout {
     SignablePayloadFieldListLayout {
         fields: vec![
-            create_text_field("Program ID", "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
+            create_text_field("Program ID", program_id),
             create_text_field("Instruction", &format_ata_instruction(instruction)),
         ],
     }
