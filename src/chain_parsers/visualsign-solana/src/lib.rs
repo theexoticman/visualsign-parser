@@ -274,7 +274,7 @@ fn convert_to_visual_sign_payload(
                     }
                 }
             }
-            "SPoo1" => {
+            program_id if program_id.starts_with("SPoo1") => {
                 // Decode stake pool instruction
                 match parse_stake_pool_instruction(&instruction.data) {
                     Ok(instruction_type) => format_stake_pool_instruction(&instruction_type),
