@@ -109,6 +109,38 @@ fn parse_ata_instruction(data: &[u8]) -> Result<AssociatedTokenAccountInstructio
     }
 }
 
+fn parse_compute_budget_instruction(
+    data: &[u8],
+) -> Result<solana_sdk::compute_budget::ComputeBudgetInstruction, &'static str> {
+    solana_sdk::compute_budget::ComputeBudgetInstruction::try_from_slice(data)
+        .map_err(|_| "Failed to decode compute budget instruction")
+}
+
+fn format_compute_budget_instruction(
+    instruction: &solana_sdk::compute_budget::ComputeBudgetInstruction,
+) -> String {
+    use solana_sdk::compute_budget::ComputeBudgetInstruction;
+
+    match instruction {
+        ComputeBudgetInstruction::RequestHeapFrame(bytes) => {
+            format!("Request Heap Frame: {} bytes", bytes)
+        }
+        ComputeBudgetInstruction::SetComputeUnitLimit(units) => {
+            format!("Set Compute Unit Limit: {} units", units)
+        }
+        ComputeBudgetInstruction::SetComputeUnitPrice(micro_lamports) => {
+            format!(
+                "Set Compute Unit Price: {} micro-lamports per compute unit",
+                micro_lamports
+            )
+        }
+        ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit(bytes) => {
+            format!("Set Loaded Accounts Data Size Limit: {} bytes", bytes)
+        }
+        ComputeBudgetInstruction::Unused => "Unused Compute Budget Instruction".to_string(),
+    }
+}
+
 fn convert_to_visual_sign_payload(
     transaction: SolanaTransaction,
     decode_transfers: bool,
@@ -213,9 +245,18 @@ fn convert_to_visual_sign_payload(
         let decoded_data = match program_id.as_str() {
             "11111111111111111111111111111111" => {
                 match parse_system_instruction(&instruction.data) {
-                    Ok(instruction_type) => format!("{:?}", instruction_type),
+                    Ok(instruction_type) => format_system_instruction(&instruction_type),
                     Err(err) => {
                         println!("Failed to parse system instruction: {}", err);
+                        "Unknown Instruction".to_string()
+                    }
+                }
+            }
+            "ComputeBudget111111111111111111111111111111" => {
+                match parse_compute_budget_instruction(&instruction.data) {
+                    Ok(instruction_type) => format_compute_budget_instruction(&instruction_type),
+                    Err(err) => {
+                        println!("Failed to parse compute budget instruction: {}", err);
                         "Unknown Instruction".to_string()
                     }
                 }
@@ -223,9 +264,7 @@ fn convert_to_visual_sign_payload(
             program_id if program_id.starts_with("AToken") => {
                 // Decode associated token address
                 match parse_ata_instruction(&instruction.data) {
-                    Ok(instruction_type) => {
-                        format!("Associated Token Address: {:?}", instruction_type)
-                    }
+                    Ok(instruction_type) => format_ata_instruction(&instruction_type),
                     Err(err) => {
                         println!(
                             "Failed to parse associated token address instruction: {}",
@@ -235,18 +274,17 @@ fn convert_to_visual_sign_payload(
                     }
                 }
             }
-            program_id if program_id.starts_with("SPoo1") => {
+            "SPoo1" => {
                 // Decode stake pool instruction
                 match parse_stake_pool_instruction(&instruction.data) {
-                    Ok(instruction_type) => {
-                        format!("Stake Pool Instruction: {:?}", instruction_type)
-                    }
+                    Ok(instruction_type) => format_stake_pool_instruction(&instruction_type),
                     Err(err) => {
                         println!("Failed to parse stake pool instruction: {}", err);
                         "Unknown Instruction".to_string()
                     }
                 }
             }
+
             _ => "Unknown Program ID".to_string(),
         };
         let instruction_user_display = match decoded_data.as_str() {
@@ -272,36 +310,34 @@ fn convert_to_visual_sign_payload(
             }],
         };
 
-        let expanded = SignablePayloadFieldListLayout {
-            fields: vec![
-                AnnotatedPayloadField {
-                    static_annotation: None,
-                    dynamic_annotation: None,
-                    signable_payload_field: SignablePayloadField::TextV2 {
-                        common: SignablePayloadFieldCommon {
-                            fallback_text: program_id.clone(),
-                            label: "Program ID".to_string(),
-                        },
-                        text_v2: visualsign::SignablePayloadFieldTextV2 {
-                            text: program_id.clone(),
-                        },
-                    },
-                },
-                // DO we need the accounts field here?
-                AnnotatedPayloadField {
-                    static_annotation: None,
-                    dynamic_annotation: None,
-                    signable_payload_field: SignablePayloadField::TextV2 {
-                        common: SignablePayloadFieldCommon {
-                            fallback_text: hex::encode(&instruction.data),
-                            label: "Data".to_string(),
-                        },
-                        text_v2: visualsign::SignablePayloadFieldTextV2 {
-                            text: hex::encode(&instruction.data),
-                        },
-                    },
-                },
-            ],
+        let expanded = match program_id.as_str() {
+            "ComputeBudget111111111111111111111111111111" => {
+                if let Ok(instruction_type) = parse_compute_budget_instruction(&instruction.data) {
+                    SignablePayloadFieldListLayout {
+                        fields: create_compute_budget_expanded_fields(
+                            &instruction_type,
+                            &program_id,
+                            &instruction.data,
+                        ),
+                    }
+                } else {
+                    create_default_expanded_fields(&program_id, &instruction.data)
+                }
+            }
+            "11111111111111111111111111111111" => {
+                if let Ok(instruction_type) = parse_system_instruction(&instruction.data) {
+                    SignablePayloadFieldListLayout {
+                        fields: create_system_instruction_expanded_fields(
+                            &instruction_type,
+                            &program_id,
+                            &instruction.data,
+                        ),
+                    }
+                } else {
+                    create_default_expanded_fields(&program_id, &instruction.data)
+                }
+            }
+            _ => create_default_expanded_fields(&program_id, &instruction.data),
         };
 
         let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -355,4 +391,642 @@ pub fn transaction_string_to_visual_sign(
 ) -> Result<SignablePayload, VisualSignError> {
     let converter = SolanaVisualSignConverter;
     converter.to_visual_sign_payload_from_string(transaction_data, options)
+}
+
+fn format_system_instruction(instruction: &SystemInstruction) -> String {
+    match instruction {
+        SystemInstruction::CreateAccount {
+            lamports,
+            space,
+            owner,
+        } => {
+            format!(
+                "Create Account: {} lamports, {} bytes, owner: {}",
+                lamports,
+                space,
+                owner.to_string()
+            )
+        }
+        SystemInstruction::Assign { owner } => {
+            format!("Assign Account Owner: {}", owner.to_string())
+        }
+        SystemInstruction::Transfer { lamports } => {
+            format!("Transfer: {} lamports", lamports)
+        }
+        SystemInstruction::CreateAccountWithSeed {
+            base,
+            seed,
+            lamports,
+            space,
+            owner,
+        } => {
+            format!(
+                "Create Account with Seed: base: {}, seed: '{}', {} lamports, {} bytes, owner: {}",
+                base.to_string(),
+                seed,
+                lamports,
+                space,
+                owner.to_string()
+            )
+        }
+        SystemInstruction::AdvanceNonceAccount => "Advance Nonce Account".to_string(),
+        SystemInstruction::WithdrawNonceAccount(lamports) => {
+            format!("Withdraw from Nonce Account: {} lamports", lamports)
+        }
+        SystemInstruction::InitializeNonceAccount(authorized) => {
+            format!(
+                "Initialize Nonce Account: authorized: {}",
+                authorized.to_string()
+            )
+        }
+        SystemInstruction::AuthorizeNonceAccount(authorized) => {
+            format!(
+                "Authorize Nonce Account: new authorized: {}",
+                authorized.to_string()
+            )
+        }
+        SystemInstruction::Allocate { space } => {
+            format!("Allocate Account Space: {} bytes", space)
+        }
+        SystemInstruction::AllocateWithSeed {
+            base,
+            seed,
+            space,
+            owner,
+        } => {
+            format!(
+                "Allocate with Seed: base: {}, seed: '{}', {} bytes, owner: {}",
+                base.to_string(),
+                seed,
+                space,
+                owner.to_string()
+            )
+        }
+        SystemInstruction::AssignWithSeed { base, seed, owner } => {
+            format!(
+                "Assign with Seed: base: {}, seed: '{}', owner: {}",
+                base.to_string(),
+                seed,
+                owner.to_string()
+            )
+        }
+        SystemInstruction::TransferWithSeed {
+            lamports,
+            from_seed,
+            from_owner,
+        } => {
+            format!(
+                "Transfer with Seed: {} lamports, seed: '{}', from owner: {}",
+                lamports,
+                from_seed,
+                from_owner.to_string()
+            )
+        }
+        SystemInstruction::UpgradeNonceAccount => "Upgrade Nonce Account".to_string(),
+    }
+}
+
+fn format_ata_instruction(instruction: &AssociatedTokenAccountInstruction) -> String {
+    match instruction {
+        AssociatedTokenAccountInstruction::Create => "Create Associated Token Account".to_string(),
+        AssociatedTokenAccountInstruction::CreateIdempotent => {
+            "Create Associated Token Account (Idempotent)".to_string()
+        }
+        AssociatedTokenAccountInstruction::RecoverNested => {
+            "Recover Nested Associated Token Account".to_string()
+        }
+    }
+}
+
+fn format_stake_pool_instruction(instruction: &StakePoolInstruction) -> String {
+    format!(
+        "Stake Pool Instruction: {}",
+        get_stake_pool_instruction_name(instruction)
+    )
+}
+
+fn get_stake_pool_instruction_name(instruction: &StakePoolInstruction) -> &'static str {
+    match instruction {
+        StakePoolInstruction::Initialize { .. } => "Initialize",
+        StakePoolInstruction::AddValidatorToPool(_) => "Add Validator to Pool",
+        StakePoolInstruction::RemoveValidatorFromPool => "Remove Validator from Pool",
+        StakePoolInstruction::DecreaseValidatorStake { .. } => "Decrease Validator Stake",
+        StakePoolInstruction::IncreaseValidatorStake { .. } => "Increase Validator Stake",
+        StakePoolInstruction::SetPreferredValidator { .. } => "Set Preferred Validator",
+        StakePoolInstruction::UpdateValidatorListBalance { .. } => "Update Validator List Balance",
+        StakePoolInstruction::UpdateStakePoolBalance => "Update Stake Pool Balance",
+        StakePoolInstruction::CleanupRemovedValidatorEntries => "Cleanup Removed Validator Entries",
+        StakePoolInstruction::DepositStake => "Deposit Stake",
+        StakePoolInstruction::WithdrawStake(_) => "Withdraw Stake",
+        StakePoolInstruction::SetManager => "Set Manager",
+        StakePoolInstruction::SetFee { .. } => "Set Fee",
+        StakePoolInstruction::SetStaker => "Set Staker",
+        StakePoolInstruction::DepositSol(_) => "Deposit SOL",
+        StakePoolInstruction::SetFundingAuthority(_) => "Set Funding Authority",
+        StakePoolInstruction::WithdrawSol(_) => "Withdraw SOL",
+        StakePoolInstruction::IncreaseAdditionalValidatorStake { .. } => {
+            "Increase Additional Validator Stake"
+        }
+        StakePoolInstruction::DecreaseAdditionalValidatorStake { .. } => {
+            "Decrease Additional Validator Stake"
+        }
+        StakePoolInstruction::DecreaseValidatorStakeWithReserve { .. } => {
+            "Decrease Validator Stake with Reserve"
+        }
+        StakePoolInstruction::CreateTokenMetadata { .. } => "Create Token Metadata",
+        StakePoolInstruction::UpdateTokenMetadata { .. } => "Update Token Metadata",
+        StakePoolInstruction::DepositStakeWithSlippage { .. } => "Deposit Stake with Slippage",
+        StakePoolInstruction::WithdrawStakeWithSlippage { .. } => "Withdraw Stake with Slippage",
+        StakePoolInstruction::DepositSolWithSlippage { .. } => "Deposit SOL with Slippage",
+        StakePoolInstruction::WithdrawSolWithSlippage { .. } => "Withdraw SOL with Slippage",
+        #[allow(deprecated)]
+        StakePoolInstruction::Redelegate { .. } => "Redelegate",
+    }
+}
+
+fn create_text_field(label: &str, text: &str) -> AnnotatedPayloadField {
+    AnnotatedPayloadField {
+        static_annotation: None,
+        dynamic_annotation: None,
+        signable_payload_field: SignablePayloadField::TextV2 {
+            common: SignablePayloadFieldCommon {
+                fallback_text: text.to_string(),
+                label: label.to_string(),
+            },
+            text_v2: visualsign::SignablePayloadFieldTextV2 {
+                text: text.to_string(),
+            },
+        },
+    }
+}
+
+fn create_number_field(label: &str, number: &str, unit: &str) -> AnnotatedPayloadField {
+    AnnotatedPayloadField {
+        static_annotation: None,
+        dynamic_annotation: None,
+        signable_payload_field: SignablePayloadField::Number {
+            common: SignablePayloadFieldCommon {
+                fallback_text: format!("{} {}", number, unit),
+                label: label.to_string(),
+            },
+            number: visualsign::SignablePayloadFieldNumber {
+                number: number.to_string(),
+            },
+        },
+    }
+}
+
+fn create_amount_field(
+    label: &str,
+    amount: &str,
+    abbreviation: &str,
+    sol_value: f64,
+) -> AnnotatedPayloadField {
+    AnnotatedPayloadField {
+        static_annotation: None,
+        dynamic_annotation: None,
+        signable_payload_field: SignablePayloadField::AmountV2 {
+            common: SignablePayloadFieldCommon {
+                fallback_text: format!("{} SOL", sol_value),
+                label: label.to_string(),
+            },
+            amount_v2: visualsign::SignablePayloadFieldAmountV2 {
+                amount: amount.to_string(),
+                abbreviation: Some(abbreviation.to_string()),
+            },
+        },
+    }
+}
+fn create_compute_budget_expanded_fields(
+    instruction: &solana_sdk::compute_budget::ComputeBudgetInstruction,
+    program_id: &str,
+    data: &[u8],
+) -> Vec<AnnotatedPayloadField> {
+    use solana_sdk::compute_budget::ComputeBudgetInstruction;
+
+    let mut fields = vec![create_text_field("Program ID", program_id)];
+
+    // Add specific fields based on instruction type
+    match instruction {
+        ComputeBudgetInstruction::RequestHeapFrame(bytes) => {
+            fields.push(create_number_field(
+                "Heap Frame Size",
+                &bytes.to_string(),
+                "bytes",
+            ));
+        }
+        ComputeBudgetInstruction::SetComputeUnitLimit(units) => {
+            fields.push(create_number_field(
+                "Compute Unit Limit",
+                &units.to_string(),
+                "units",
+            ));
+        }
+        ComputeBudgetInstruction::SetComputeUnitPrice(micro_lamports) => {
+            fields.push(create_number_field(
+                "Price per Compute Unit",
+                &micro_lamports.to_string(),
+                "micro-lamports",
+            ));
+        }
+        ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit(bytes) => {
+            fields.push(create_number_field(
+                "Data Size Limit",
+                &bytes.to_string(),
+                "bytes",
+            ));
+        }
+        ComputeBudgetInstruction::Unused => {
+            // No additional fields for unused instruction
+        }
+    }
+
+    fields.push(create_text_field("Raw Data", &hex::encode(data)));
+    fields
+}
+
+fn create_system_instruction_expanded_fields(
+    instruction: &SystemInstruction,
+    program_id: &str,
+    data: &[u8],
+) -> Vec<AnnotatedPayloadField> {
+    let mut fields = vec![create_text_field("Program ID", program_id)];
+
+    // Add specific fields based on instruction type
+    match instruction {
+        SystemInstruction::CreateAccount {
+            lamports,
+            space,
+            owner,
+        } => {
+            fields.push(create_amount_field(
+                "Amount",
+                &lamports.to_string(),
+                "lamports",
+                *lamports as f64 / 1_000_000_000.0,
+            ));
+            fields.push(create_number_field("Space", &space.to_string(), "bytes"));
+            fields.push(create_text_field("Owner", &owner.to_string()));
+        }
+        SystemInstruction::Transfer { lamports } => {
+            fields.push(create_amount_field(
+                "Transfer Amount",
+                &lamports.to_string(),
+                "lamports",
+                *lamports as f64 / 1_000_000_000.0,
+            ));
+        }
+        SystemInstruction::Assign { owner } => {
+            fields.push(create_text_field("New Owner", &owner.to_string()));
+        }
+        SystemInstruction::Allocate { space } => {
+            fields.push(create_number_field("Space", &space.to_string(), "bytes"));
+        }
+        _ => {
+            // For other system instructions, just show the instruction type
+            fields.push(create_text_field(
+                "Instruction Details",
+                &format!("{:?}", instruction),
+            ));
+        }
+    }
+
+    fields.push(create_text_field("Raw Data", &hex::encode(data)));
+    fields
+}
+
+fn create_default_expanded_fields(program_id: &str, data: &[u8]) -> SignablePayloadFieldListLayout {
+    SignablePayloadFieldListLayout {
+        fields: vec![
+            create_text_field("Program ID", program_id),
+            create_text_field("Data", &hex::encode(data)),
+        ],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use solana_sdk::compute_budget::ComputeBudgetInstruction;
+
+    #[test]
+    fn test_create_compute_budget_expanded_fields_set_compute_unit_limit() {
+        let instruction = ComputeBudgetInstruction::SetComputeUnitLimit(1400000);
+        let program_id = "ComputeBudget111111111111111111111111111111";
+        let data = vec![0x02, 0x00, 0x60, 0x5C, 0x15, 0x00]; // Sample encoded data
+
+        let fields = create_compute_budget_expanded_fields(&instruction, program_id, &data);
+
+        assert_eq!(fields.len(), 3); // Program ID + Compute Unit Limit + Raw Data
+
+        // Check Program ID field
+        match &fields[0].signable_payload_field {
+            SignablePayloadField::TextV2 { common, text_v2 } => {
+                assert_eq!(common.label, "Program ID");
+                assert_eq!(text_v2.text, program_id);
+            }
+            _ => panic!("Expected TextV2 field for Program ID"),
+        }
+
+        // Check Compute Unit Limit field
+        match &fields[1].signable_payload_field {
+            SignablePayloadField::Number { common, number } => {
+                assert_eq!(common.label, "Compute Unit Limit");
+                assert_eq!(common.fallback_text, "1400000 units");
+                assert_eq!(number.number, "1400000");
+            }
+            _ => panic!("Expected Number field for Compute Unit Limit"),
+        }
+
+        // Check Raw Data field
+        match &fields[2].signable_payload_field {
+            SignablePayloadField::TextV2 { common, text_v2 } => {
+                assert_eq!(common.label, "Raw Data");
+                assert_eq!(text_v2.text, hex::encode(&data));
+            }
+            _ => panic!("Expected TextV2 field for Raw Data"),
+        }
+    }
+
+    #[test]
+    fn test_create_compute_budget_expanded_fields_set_compute_unit_price() {
+        let instruction = ComputeBudgetInstruction::SetComputeUnitPrice(50000);
+        let program_id = "ComputeBudget111111111111111111111111111111";
+        let data = vec![0x03, 0x50, 0xC3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Sample encoded data
+
+        let fields = create_compute_budget_expanded_fields(&instruction, program_id, &data);
+
+        assert_eq!(fields.len(), 3); // Program ID + Price + Raw Data
+
+        // Check Price per Compute Unit field
+        match &fields[1].signable_payload_field {
+            SignablePayloadField::Number { common, number } => {
+                assert_eq!(common.label, "Price per Compute Unit");
+                assert_eq!(common.fallback_text, "50000 micro-lamports");
+                assert_eq!(number.number, "50000");
+            }
+            _ => panic!("Expected Number field for Price per Compute Unit"),
+        }
+    }
+
+    #[test]
+    fn test_create_compute_budget_expanded_fields_request_heap_frame() {
+        let instruction = ComputeBudgetInstruction::RequestHeapFrame(262144);
+        let program_id = "ComputeBudget111111111111111111111111111111";
+        let data = vec![0x01, 0x00, 0x00, 0x04, 0x00]; // Sample encoded data
+
+        let fields = create_compute_budget_expanded_fields(&instruction, program_id, &data);
+
+        assert_eq!(fields.len(), 3); // Program ID + Heap Frame Size + Raw Data
+
+        // Check Heap Frame Size field
+        match &fields[1].signable_payload_field {
+            SignablePayloadField::Number { common, number } => {
+                assert_eq!(common.label, "Heap Frame Size");
+                assert_eq!(common.fallback_text, "262144 bytes");
+                assert_eq!(number.number, "262144");
+            }
+            _ => panic!("Expected Number field for Heap Frame Size"),
+        }
+    }
+
+    #[test]
+    fn test_create_compute_budget_expanded_fields_set_loaded_accounts_data_size_limit() {
+        let instruction = ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit(65536);
+        let program_id = "ComputeBudget111111111111111111111111111111";
+        let data = vec![0x04, 0x00, 0x00, 0x01, 0x00]; // Sample encoded data
+
+        let fields = create_compute_budget_expanded_fields(&instruction, program_id, &data);
+
+        assert_eq!(fields.len(), 3); // Program ID + Data Size Limit + Raw Data
+
+        // Check Data Size Limit field
+        match &fields[1].signable_payload_field {
+            SignablePayloadField::Number { common, number } => {
+                assert_eq!(common.label, "Data Size Limit");
+                assert_eq!(common.fallback_text, "65536 bytes");
+                assert_eq!(number.number, "65536");
+            }
+            _ => panic!("Expected Number field for Data Size Limit"),
+        }
+    }
+
+    #[test]
+    fn test_create_compute_budget_expanded_fields_unused() {
+        let instruction = ComputeBudgetInstruction::Unused;
+        let program_id = "ComputeBudget111111111111111111111111111111";
+        let data = vec![0x00]; // Sample encoded data
+
+        let fields = create_compute_budget_expanded_fields(&instruction, program_id, &data);
+
+        assert_eq!(fields.len(), 2); // Program ID + Raw Data (no specific field for Unused)
+
+        // Should only have Program ID and Raw Data fields
+        match &fields[0].signable_payload_field {
+            SignablePayloadField::TextV2 { common, .. } => {
+                assert_eq!(common.label, "Program ID");
+            }
+            _ => panic!("Expected TextV2 field for Program ID"),
+        }
+
+        match &fields[1].signable_payload_field {
+            SignablePayloadField::TextV2 { common, .. } => {
+                assert_eq!(common.label, "Raw Data");
+            }
+            _ => panic!("Expected TextV2 field for Raw Data"),
+        }
+    }
+
+    #[test]
+    fn test_format_compute_budget_instruction_string_output() {
+        // Test that the string formatting doesn't include number formatting
+        let instruction = ComputeBudgetInstruction::SetComputeUnitLimit(1400000);
+        let result = format_compute_budget_instruction(&instruction);
+
+        assert_eq!(result, "Set Compute Unit Limit: 1400000 units");
+        // Ensure no comma formatting in the string output
+        assert!(!result.contains("1,400,000"));
+    }
+
+    #[test]
+    fn test_parse_compute_budget_instruction() {
+        // Test parsing actual instruction data
+        let set_compute_unit_limit_data = vec![0x02, 0xC0, 0x5C, 0x15, 0x00]; // SetComputeUnitLimit(1400000)
+
+        let parsed = parse_compute_budget_instruction(&set_compute_unit_limit_data);
+        assert!(parsed.is_ok());
+
+        match parsed.unwrap() {
+            ComputeBudgetInstruction::SetComputeUnitLimit(units) => {
+                assert_eq!(units, 1400000);
+            }
+            _ => panic!("Expected SetComputeUnitLimit instruction"),
+        }
+    }
+
+    #[test]
+    fn test_compute_budget_expanded_fields_field_types() {
+        let instruction = ComputeBudgetInstruction::SetComputeUnitLimit(1000000);
+        let program_id = "ComputeBudget111111111111111111111111111111";
+        let data = vec![0x02, 0x40, 0x42, 0x0F, 0x00]; // Sample data
+
+        let fields = create_compute_budget_expanded_fields(&instruction, program_id, &data);
+
+        // Verify that numeric values use Number field type, not TextV2
+        match &fields[1].signable_payload_field {
+            SignablePayloadField::Number { .. } => {
+                // This is correct - numeric values should use Number field
+            }
+            SignablePayloadField::TextV2 { .. } => {
+                panic!("Numeric values should use Number field, not TextV2");
+            }
+            _ => panic!("Unexpected field type for numeric value"),
+        }
+    }
+
+    #[test]
+    fn test_all_compute_budget_instruction_variants() {
+        let program_id = "ComputeBudget111111111111111111111111111111";
+        let data = vec![0x01, 0x02, 0x03];
+
+        let instructions = vec![
+            ComputeBudgetInstruction::RequestHeapFrame(32768),
+            ComputeBudgetInstruction::SetComputeUnitLimit(200000),
+            ComputeBudgetInstruction::SetComputeUnitPrice(1000),
+            ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit(10240),
+            ComputeBudgetInstruction::Unused,
+        ];
+
+        for instruction in instructions {
+            let fields = create_compute_budget_expanded_fields(&instruction, program_id, &data);
+
+            // All should have at least Program ID and Raw Data
+            assert!(fields.len() >= 2);
+
+            // First field should always be Program ID
+            match &fields[0].signable_payload_field {
+                SignablePayloadField::TextV2 { common, .. } => {
+                    assert_eq!(common.label, "Program ID");
+                }
+                _ => panic!("First field should be Program ID"),
+            }
+
+            // Last field should always be Raw Data
+            let last_field = fields.last().unwrap();
+            match &last_field.signable_payload_field {
+                SignablePayloadField::TextV2 { common, .. } => {
+                    assert_eq!(common.label, "Raw Data");
+                }
+                _ => panic!("Last field should be Raw Data"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_compute_budget_instruction_integration() {
+        // Create a minimal transaction with a compute budget instruction
+        use solana_sdk::{instruction::Instruction, message::Message, pubkey::Pubkey};
+        use std::str::FromStr;
+
+        let compute_budget_program_id =
+            Pubkey::from_str("ComputeBudget111111111111111111111111111111").unwrap();
+
+        // Create SetComputeUnitLimit instruction data
+        let instruction_data = {
+            // For compute budget instructions, we need to use the correct serialization
+            // SetComputeUnitLimit has instruction type 2 followed by the u32 value
+            let mut data = vec![2u8]; // SetComputeUnitLimit discriminator
+            data.extend_from_slice(&1400000u32.to_le_bytes());
+            data
+        };
+
+        let instruction = Instruction {
+            program_id: compute_budget_program_id,
+            accounts: vec![],
+            data: instruction_data,
+        };
+
+        let payer = Pubkey::new_unique();
+        let message = Message::new(&[instruction], Some(&payer));
+        let transaction = SolanaTransaction::new_unsigned(message);
+
+        // Convert to visual sign payload
+        let options = VisualSignOptions {
+            decode_transfers: false,
+            transaction_name: Some("Test Compute Budget Transaction".to_string()),
+        };
+
+        let payload = convert_to_visual_sign_payload(transaction, false, options.transaction_name);
+
+        // Find the compute budget instruction in the payload
+        let compute_budget_instruction = payload
+            .fields
+            .iter()
+            .find(|field| {
+                if let SignablePayloadField::PreviewLayout { preview_layout, .. } = field {
+                    if let Some(title) = &preview_layout.title {
+                        title.text.contains("Set Compute Unit Limit")
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            })
+            .expect("Should find compute budget instruction");
+
+        // Check that it has the expanded view with proper field types
+        if let SignablePayloadField::PreviewLayout { preview_layout, .. } =
+            compute_budget_instruction
+        {
+            if let Some(expanded) = &preview_layout.expanded {
+                // Should have at least 3 fields: Program ID, Compute Unit Limit, Raw Data
+                assert!(expanded.fields.len() >= 3);
+
+                // Check that the compute unit limit field is a Number type
+                let compute_unit_field = expanded
+                    .fields
+                    .iter()
+                    .find(|field| match &field.signable_payload_field {
+                        SignablePayloadField::Number { common, .. } => {
+                            common.label == "Compute Unit Limit"
+                        }
+                        _ => false,
+                    })
+                    .expect("Should find Compute Unit Limit number field");
+
+                if let SignablePayloadField::Number { number, .. } =
+                    &compute_unit_field.signable_payload_field
+                {
+                    assert_eq!(number.number, "1400000");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_system_instruction_expanded_fields_transfer() {
+        let instruction = SystemInstruction::Transfer {
+            lamports: 1000000000,
+        }; // 1 SOL
+        let program_id = "11111111111111111111111111111111";
+        let data = vec![0x02, 0x00, 0x00, 0x00, 0x00, 0xCA, 0x9A, 0x3B, 0x00]; // Sample encoded data
+
+        let fields = create_system_instruction_expanded_fields(&instruction, program_id, &data);
+
+        // Should have Program ID + Transfer Amount + Raw Data
+        assert_eq!(fields.len(), 3);
+
+        // Check Transfer Amount field uses AmountV2 type
+        match &fields[1].signable_payload_field {
+            SignablePayloadField::AmountV2 { common, amount_v2 } => {
+                assert_eq!(common.label, "Transfer Amount");
+                assert_eq!(amount_v2.amount, "1000000000");
+                assert_eq!(amount_v2.abbreviation, Some("lamports".to_string()));
+                // Fallback text should show SOL conversion
+                assert!(common.fallback_text.contains("1 SOL"));
+            }
+            _ => panic!("Expected AmountV2 field for Transfer Amount"),
+        }
+    }
 }
