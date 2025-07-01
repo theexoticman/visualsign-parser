@@ -1186,7 +1186,10 @@ mod tests {
     #[test]
     fn test_format_associated_token_instruction_expanded_fields() {
         let instruction = AssociatedTokenAccountInstruction::Create;
-        let expanded = format_associated_token_instruction(&instruction, "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+        let expanded = format_associated_token_instruction(
+            &instruction,
+            "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+        );
 
         assert_eq!(expanded.fields.len(), 2); // Program ID + Instruction
 

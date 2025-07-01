@@ -132,6 +132,8 @@ async fn parser_k8_health() {
     integration::Builder::new().execute(test).await
 }
 
+// This is deliberately using a more "high level test" that only handles the native transfer - any chain specific logic is handled by the tests in chain_parsers
+// This allows us to focus on the parser's ability to handle different chain types without getting bogged down in chain-specific libraries
 #[tokio::test]
 async fn parser_solana_native_transfer_e2e() {
     async fn test(test_args: TestArgs) {
@@ -140,7 +142,6 @@ async fn parser_solana_native_transfer_e2e() {
         let solana_transfer_message = "AQABA/vgkNkfnOBm+03UvAGzKxIiY/EUhIUGtwFgGKTg7zW14SNc89MK6BlbxE3LXXr+fSM83MDCJQ1wYYDwn39kZloAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALHd9i9ddFp9Pbk7SBekGKS8baviinT//+klSnP/gLqsAQICAAEMAgAAAACAxqR+jQMA";
 
         let solana_tx = create_solana_transaction_with_empty_signatures(solana_transfer_message);
-        println!("Solana transaction: {}", solana_tx);
         let parse_request = ParseRequest {
             unsigned_payload: solana_tx,
             chain: Chain::Solana as i32,
@@ -253,7 +254,3 @@ async fn parser_solana_native_transfer_e2e() {
 
     integration::Builder::new().execute(test).await
 }
-
-// TODO SPL transfers
-// TODO major DeFi examples
-// Maybe this should be handled by the chain_parsers?
