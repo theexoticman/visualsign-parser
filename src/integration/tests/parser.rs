@@ -140,6 +140,7 @@ async fn parser_solana_native_transfer_e2e() {
         let solana_transfer_message = "AQABA/vgkNkfnOBm+03UvAGzKxIiY/EUhIUGtwFgGKTg7zW14SNc89MK6BlbxE3LXXr+fSM83MDCJQ1wYYDwn39kZloAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALHd9i9ddFp9Pbk7SBekGKS8baviinT//+klSnP/gLqsAQICAAEMAgAAAACAxqR+jQMA";
 
         let solana_tx = create_solana_transaction_with_empty_signatures(solana_transfer_message);
+        println!("Solana transaction: {}", solana_tx);
         let parse_request = ParseRequest {
             unsigned_payload: solana_tx,
             chain: Chain::Solana as i32,
@@ -159,73 +160,82 @@ async fn parser_solana_native_transfer_e2e() {
         let expected_sp = serde_json::json!({
           "Fields": [
             {
+              "Type": "text_v2",
               "FallbackText": "Solana",
               "Label": "Network",
               "TextV2": {
                 "Text": "Solana"
-              },
-              "Type": "text_v2"
+              }
             },
             {
+              "Type": "text_v2",
               "FallbackText": "HxDwUk6kcpR7UStRPHnCSCqCGqWWxqBcgf8YkGrAnwak, G9r1RYmVnXptzCA2an46rNnHsCAQLvjyM6vR2mo3LpG1, 11111111111111111111111111111111",
               "Label": "Account Keys",
               "TextV2": {
                 "Text": "HxDwUk6kcpR7UStRPHnCSCqCGqWWxqBcgf8YkGrAnwak, G9r1RYmVnXptzCA2an46rNnHsCAQLvjyM6vR2mo3LpG1, 11111111111111111111111111111111"
-              },
-              "Type": "text_v2"
+              }
             },
             {
+              "Type": "text_v2",
               "FallbackText": "Transfer 1: HxDwUk6kcpR7UStRPHnCSCqCGqWWxqBcgf8YkGrAnwak -> G9r1RYmVnXptzCA2an46rNnHsCAQLvjyM6vR2mo3LpG1: 1000000000000000",
               "Label": "Transfer 1",
               "TextV2": {
                 "Text": "From: HxDwUk6kcpR7UStRPHnCSCqCGqWWxqBcgf8YkGrAnwak\nTo: G9r1RYmVnXptzCA2an46rNnHsCAQLvjyM6vR2mo3LpG1\nAmount: 1000000000000000"
-              },
-              "Type": "text_v2"
+              }
             },
             {
+              "Type": "preview_layout",
               "FallbackText": "Program ID: 11111111111111111111111111111111\nData: 020000000080c6a47e8d0300",
               "Label": "Instruction 1",
               "PreviewLayout": {
+                "Title": {
+                  "Text": "Transfer: 1000000000000000 lamports"
+                },
+                "Subtitle": {
+                  "Text": ""
+                },
                 "Condensed": {
                   "Fields": [
                     {
-                      "FallbackText": "Transfer { lamports: 1000000000000000 }",
+                      "Type": "text_v2",
+                      "FallbackText": "Transfer: 1000000000000000 lamports",
                       "Label": "Instruction",
                       "TextV2": {
-                        "Text": "Transfer { lamports: 1000000000000000 }"
-                      },
-                      "Type": "text_v2"
+                        "Text": "Transfer: 1000000000000000 lamports"
+                      }
                     }
                   ]
                 },
                 "Expanded": {
                   "Fields": [
                     {
+                      "Type": "text_v2",
                       "FallbackText": "11111111111111111111111111111111",
                       "Label": "Program ID",
                       "TextV2": {
                         "Text": "11111111111111111111111111111111"
-                      },
-                      "Type": "text_v2"
+                      }
                     },
                     {
+                      "Type": "amount_v2",
+                      "FallbackText": "1000000 SOL",
+                      "Label": "Transfer Amount",
+                      "AmountV2": {
+                        "Amount": "1000000000000000",
+                        "Abbreviation": "lamports"
+                      }
+                    },
+                    {
+                      "Type": "text_v2",
                       "FallbackText": "020000000080c6a47e8d0300",
-                      "Label": "Data",
+                      "Label": "Raw Data",
                       "TextV2": {
                         "Text": "020000000080c6a47e8d0300"
-                      },
-                      "Type": "text_v2"
+                      }
                     }
                   ]
-                },
-                "Subtitle": {
-                  "Text": ""
-                },
-                "Title": {
-                  "Text": "Transfer { lamports: 1000000000000000 }"
                 }
-              },
-              "Type": "preview_layout"
+              }
             }
           ],
           "PayloadType": "SolanaTx",
