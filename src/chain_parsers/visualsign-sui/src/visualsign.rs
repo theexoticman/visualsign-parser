@@ -49,7 +49,7 @@ impl VisualSignConverter<SuiTransactionWrapper> for SuiTransactionConverter {
         _options: VisualSignOptions,
     ) -> anyhow::Result<SignablePayload, VisualSignError> {
         let tx_block = &transaction.transaction_block;
-        
+
         let transfer_list = detect_transfer_from_transaction(tx_block);
 
         let mut fields = Vec::new();
