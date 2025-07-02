@@ -77,8 +77,8 @@ pub fn detect_transfer_from_transaction(tx_block: &SuiTransactionBlock) -> Vec<T
         match command {
             SplitCoins(arg, amounts) => {
                 results[command_index] = Some(SplitCoinResult::new(
-                    get_amount(&transaction, amounts),
-                    get_token(&transaction, arg),
+                    get_amount(transaction, amounts),
+                    get_token(transaction, arg),
                 ));
             }
             TransferObjects(args, arg) => {
@@ -91,7 +91,7 @@ pub fn detect_transfer_from_transaction(tx_block: &SuiTransactionBlock) -> Vec<T
                 };
 
                 transfers.push(TransferInfo {
-                    recipient: get_recipient(&transaction, arg),
+                    recipient: get_recipient(transaction, arg),
                     amount: result.amount,
                     token: result.token.clone(),
                 });
@@ -107,7 +107,9 @@ fn get_token(transaction: &SuiProgrammableTransactionBlock, arg: &SuiArgument) -
     match arg {
         SuiArgument::GasCoin => TokenType::Sui,
         Input(index) => {
-            let sui_value = transaction.inputs.get(*index as usize).unwrap();
+            let Some(sui_value) = transaction.inputs.get(*index as usize) else {
+                return TokenType::Unknown(String::default());
+            };
 
             let Some(coin_object) = sui_value.object() else {
                 return TokenType::Unknown("".to_string());
@@ -115,7 +117,7 @@ fn get_token(transaction: &SuiProgrammableTransactionBlock, arg: &SuiArgument) -
 
             object_id_to_token_type(&coin_object.to_hex())
         }
-        _ => TokenType::Unknown("".to_string()),
+        _ => TokenType::Unknown(String::default()),
     }
 }
 
@@ -132,10 +134,8 @@ fn get_amount(
     transaction: &SuiProgrammableTransactionBlock,
     sui_args: &[SuiArgument],
 ) -> Option<u64> {
-    let sui_value = transaction
-        .inputs
-        .get(get_index(sui_args)? as usize)
-        .unwrap();
+    let sui_value = transaction.inputs.get(get_index(sui_args)? as usize)?;
+
     let Ok(MoveValue::U64(decoded_value)) =
         SuiJsonValue::to_move_value(&sui_value.pure()?.to_json_value(), &MoveTypeLayout::U64)
     else {
@@ -151,8 +151,7 @@ fn get_recipient(
 ) -> Option<SuiAddress> {
     let sui_value = transaction
         .inputs
-        .get(parse_numeric_argument(arg)? as usize)
-        .unwrap();
+        .get(parse_numeric_argument(arg)? as usize)?;
     sui_value.pure()?.to_sui_address().ok()
 }
 
@@ -161,7 +160,7 @@ fn get_index(sui_args: &[SuiArgument]) -> Option<u16> {
         return None;
     }
 
-    parse_numeric_argument(sui_args.first().unwrap())
+    parse_numeric_argument(sui_args.first()?)
 }
 
 fn parse_numeric_argument(arg: &SuiArgument) -> Option<u16> {
@@ -175,7 +174,7 @@ fn parse_numeric_argument(arg: &SuiArgument) -> Option<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{parse_sui_transaction, TransactionEncoding};
+    use crate::{TransactionEncoding, parse_sui_transaction};
     use std::str::FromStr;
 
     #[test]
@@ -190,11 +189,9 @@ mod tests {
         assert_eq!(result[0].amount, Some(1000));
         assert_eq!(
             result[0].recipient,
-            Some(
-                SuiAddress::from_str(
-                    "0xa1e3ae551c2abe3c6bcea22d3f19356a647086d6bd56ac0d09e4eeed06290b76"
-                )?
-            )
+            Some(SuiAddress::from_str(
+                "0xa1e3ae551c2abe3c6bcea22d3f19356a647086d6bd56ac0d09e4eeed06290b76"
+            )?)
         );
 
         Ok(())

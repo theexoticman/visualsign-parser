@@ -1,7 +1,7 @@
 pub mod commands;
+pub mod module_resolver;
 pub mod parser;
 pub mod visualsign;
-pub mod module_resolver;
 
-pub use parser::{parse_sui_transaction, TransactionEncoding};
-pub use visualsign::{sui_transaction_to_vsp, SuiTransactionWrapper, SuiTransactionConverter};
+pub use parser::{TransactionEncoding, parse_sui_transaction};
+pub use visualsign::{SuiTransactionConverter, SuiTransactionWrapper, sui_transaction_to_vsp};

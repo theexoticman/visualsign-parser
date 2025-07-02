@@ -262,9 +262,6 @@ mod tests {
         let options = VisualSignOptions::default();
 
         let result = sui_transaction_to_vsp(test_data, options);
-
-        dbg!(&result);
-
         assert!(result.is_ok());
 
         let payload = result.unwrap();

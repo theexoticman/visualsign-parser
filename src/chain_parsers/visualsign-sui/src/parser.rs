@@ -1,7 +1,7 @@
 use crate::module_resolver::SuiModuleResolver;
 
-use anyhow::{anyhow, Result};
-use base64::{engine::general_purpose, Engine};
+use anyhow::{Result, anyhow};
+use base64::{Engine, engine::general_purpose};
 use std::str::FromStr;
 
 use move_bytecode_utils::module_cache::SyncModuleCache;

@@ -8,7 +8,7 @@ impl ModuleResolver for SuiModuleResolver {
     fn get_module(
         &self,
         _: &move_core_types::language_storage::ModuleId,
-    ) -> anyhow::Result<Option<Vec<u8>>, Self::Error> {
+    ) -> Result<Option<Vec<u8>>, Self::Error> {
         Ok(None)
     }
 }
