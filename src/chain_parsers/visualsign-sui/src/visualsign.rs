@@ -49,9 +49,8 @@ impl VisualSignConverter<SuiTransactionWrapper> for SuiTransactionConverter {
         _options: VisualSignOptions,
     ) -> anyhow::Result<SignablePayload, VisualSignError> {
         let tx_block = &transaction.transaction_block;
-
-        // Try to detect if this is a transfer transaction
-        let transfer_info = detect_transfer_from_transaction(tx_block);
+        
+        let transfer_list = detect_transfer_from_transaction(tx_block);
 
         let mut fields = Vec::new();
 
@@ -82,7 +81,7 @@ impl VisualSignConverter<SuiTransactionWrapper> for SuiTransactionConverter {
         });
 
         // Add transfer-specific fields if this is a transfer
-        for transfer in transfer_info {
+        for transfer in transfer_list {
             fields.extend(transfer_info_to_vsp(&transfer));
         }
 
