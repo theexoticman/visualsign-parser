@@ -6,6 +6,7 @@ use solana_sdk::compute_budget::ComputeBudgetInstruction;
 use solana_sdk::transaction::Transaction as SolanaTransaction;
 use spl_associated_token_account::instruction::AssociatedTokenAccountInstruction;
 use spl_stake_pool::instruction::StakePoolInstruction;
+use std::collections::HashMap;
 use visualsign::{
     AnnotatedPayloadField, SignablePayload, SignablePayloadField, SignablePayloadFieldCommon,
     SignablePayloadFieldListLayout, SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
@@ -16,6 +17,53 @@ use visualsign::{
         VisualSignError, VisualSignOptions,
     },
 };
+
+#[derive(Debug, Clone)]
+pub struct TokenInfo {
+    pub symbol: &'static str,
+    pub name: &'static str,
+    pub decimals: u8,
+}
+
+/// Static lookup table for common Solana token addresses
+pub fn get_token_lookup_table() -> HashMap<&'static str, TokenInfo> {
+    // This is a simplified static lookup table for common tokens
+    // In a real application, this could be replaced with a more dynamic solution
+    // or fetched from a reliable source like a token registry.
+    let mut tokens = HashMap::new();
+
+    // SOL (native)
+    tokens.insert(
+        "11111111111111111111111111111111",
+        TokenInfo {
+            symbol: "SOL",
+            name: "Solana",
+            decimals: 9,
+        },
+    );
+
+    // USDC
+    tokens.insert(
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        TokenInfo {
+            symbol: "USDC",
+            name: "USD Coin",
+            decimals: 6,
+        },
+    );
+
+    // USDT
+    tokens.insert(
+        "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+        TokenInfo {
+            symbol: "USDT",
+            name: "Tether USD",
+            decimals: 6,
+        },
+    );
+
+    tokens
+}
 
 /// Wrapper around Solana's transaction type that implements the Transaction trait
 #[derive(Debug, Clone)]
@@ -116,7 +164,248 @@ fn parse_compute_budget_instruction(data: &[u8]) -> Result<ComputeBudgetInstruct
         .map_err(|_| "Failed to decode compute budget instruction")
 }
 
-fn format_compute_budget_instruction(instruction: &ComputeBudgetInstruction) -> String {
+/// Enhanced swap instruction with token information
+#[derive(Debug, Clone)]
+pub struct SwapTokenInfo {
+    pub address: String,
+    pub symbol: String,
+    pub name: String,
+    pub decimals: u8,
+    pub amount: u64,
+    pub human_readable_amount: String,
+}
+
+/// Helper function to format token amounts
+pub fn format_token_amount(amount: u64, decimals: u8) -> String {
+    let divisor = 10_u64.pow(decimals as u32);
+    let whole = amount / divisor;
+    let fractional = amount % divisor;
+
+    if fractional == 0 {
+        format!("{}", whole)
+    } else {
+        let fractional_str = format!("{:0width$}", fractional, width = decimals as usize);
+        let trimmed = fractional_str.trim_end_matches('0');
+        if trimmed.is_empty() {
+            format!("{}", whole)
+        } else {
+            format!("{}.{}", whole, trimmed)
+        }
+    }
+}
+
+/// Helper function to get token info from address
+pub fn get_token_info(address: &str, amount: u64) -> SwapTokenInfo {
+    let token_lookup = get_token_lookup_table();
+
+    if let Some(token_info) = token_lookup.get(address) {
+        SwapTokenInfo {
+            address: address.to_string(),
+            symbol: token_info.symbol.to_string(),
+            name: token_info.name.to_string(),
+            decimals: token_info.decimals,
+            amount,
+            human_readable_amount: format_token_amount(amount, token_info.decimals),
+        }
+    } else {
+        // Unknown token - show truncated address
+        let truncated = if address.len() > 8 {
+            format!("{}...{}", &address[0..4], &address[address.len() - 4..])
+        } else {
+            address.to_string()
+        };
+
+        SwapTokenInfo {
+            address: address.to_string(),
+            symbol: truncated.clone(),
+            name: format!("Unknown Token ({})", truncated),
+            decimals: 0, // Unknown decimals
+            amount,
+            human_readable_amount: amount.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum JupiterSwapInstruction {
+    Route {
+        in_token: Option<SwapTokenInfo>,
+        out_token: Option<SwapTokenInfo>,
+        slippage_bps: u16,
+    },
+    ExactOutRoute {
+        in_token: Option<SwapTokenInfo>,
+        out_token: Option<SwapTokenInfo>,
+        slippage_bps: u16,
+    },
+    SharedAccountsRoute {
+        in_token: Option<SwapTokenInfo>,
+        out_token: Option<SwapTokenInfo>,
+        slippage_bps: u16,
+    },
+    Unknown,
+}
+
+fn parse_jupiter_swap_instruction(
+    data: &[u8],
+    accounts: &[String],
+) -> Result<JupiterSwapInstruction, &'static str> {
+    if data.is_empty() {
+        return Err("Empty instruction data");
+    }
+
+    // Jupiter instructions use an 8-byte discriminator
+    if data.len() < 8 {
+        return Err("Invalid instruction data length");
+    }
+
+    let discriminator = &data[0..8];
+
+    match discriminator {
+        // Real-world Jupiter swap discriminator from production data
+        [0xc1, 0x20, 0x9b, 0x33, 0x41, 0xd6, 0x9c, 0x81] => {
+            parse_jupiter_route_instruction(&data[8..], accounts)
+        }
+        // Route instruction discriminator: 0xe517cb977ae3ad2a
+        [0x2a, 0xad, 0xe3, 0x7a, 0x97, 0xcb, 0x17, 0xe5] => {
+            parse_jupiter_route_instruction(&data[8..], accounts)
+        }
+        // ExactOutRoute instruction discriminator: 0x4bd7dfa80cd0b62a
+        [0x2a, 0xb6, 0xd0, 0x0c, 0xa8, 0xdf, 0xd7, 0x4b] => {
+            parse_jupiter_exact_out_route_instruction(&data[8..], accounts)
+        }
+        // SharedAccountsRoute instruction discriminator: 0x3af2aaae2fb6d42a
+        [0x2a, 0xd4, 0xb6, 0x2f, 0xae, 0xaa, 0xf2, 0x3a] => {
+            parse_jupiter_shared_accounts_route_instruction(&data[8..], accounts)
+        }
+        _ => Ok(JupiterSwapInstruction::Unknown),
+    }
+}
+
+fn parse_jupiter_route_instruction(
+    data: &[u8],
+    accounts: &[String],
+) -> Result<JupiterSwapInstruction, &'static str> {
+    if data.len() < 16 {
+        return Err("Route instruction data too short");
+    }
+
+    // Skip the route plan (variable length), parse basic amounts at the end
+    // This is a simplified parser - in reality we'd need to parse the full borsh structure
+    let in_amount = u64::from_le_bytes(
+        data[data.len() - 16..data.len() - 8]
+            .try_into()
+            .map_err(|_| "Invalid in_amount")?,
+    );
+    let quoted_out_amount = u64::from_le_bytes(
+        data[data.len() - 8..]
+            .try_into()
+            .map_err(|_| "Invalid quoted_out_amount")?,
+    );
+
+    // For Jupiter swaps, we need to infer token accounts from the instruction accounts
+    // Typically: accounts[0] = source token account, accounts[1] = destination token account
+    // But Jupiter uses multiple accounts, so we'll use common positions or fall back to unknown
+    let in_token = if accounts.len() > 2 {
+        Some(get_token_info(&accounts[2], in_amount)) // Often the source mint
+    } else {
+        None
+    };
+
+    let out_token = if accounts.len() > 3 {
+        Some(get_token_info(&accounts[3], quoted_out_amount)) // Often the destination mint
+    } else {
+        None
+    };
+
+    Ok(JupiterSwapInstruction::Route {
+        in_token,
+        out_token,
+        slippage_bps: 50, // Default, we'd need to parse the full structure to get the real value
+    })
+}
+
+fn parse_jupiter_exact_out_route_instruction(
+    data: &[u8],
+    accounts: &[String],
+) -> Result<JupiterSwapInstruction, &'static str> {
+    if data.len() < 16 {
+        return Err("ExactOutRoute instruction data too short");
+    }
+
+    let in_amount = u64::from_le_bytes(
+        data[data.len() - 16..data.len() - 8]
+            .try_into()
+            .map_err(|_| "Invalid in_amount")?,
+    );
+    let out_amount = u64::from_le_bytes(
+        data[data.len() - 8..]
+            .try_into()
+            .map_err(|_| "Invalid out_amount")?,
+    );
+
+    let in_token = if accounts.len() > 2 {
+        Some(get_token_info(&accounts[2], in_amount))
+    } else {
+        None
+    };
+
+    let out_token = if accounts.len() > 3 {
+        Some(get_token_info(&accounts[3], out_amount))
+    } else {
+        None
+    };
+
+    Ok(JupiterSwapInstruction::ExactOutRoute {
+        in_token,
+        out_token,
+        slippage_bps: 50, // Default
+    })
+}
+
+fn parse_jupiter_shared_accounts_route_instruction(
+    data: &[u8],
+    accounts: &[String],
+) -> Result<JupiterSwapInstruction, &'static str> {
+    if data.len() < 16 {
+        return Err("SharedAccountsRoute instruction data too short");
+    }
+
+    let in_amount = u64::from_le_bytes(
+        data[data.len() - 16..data.len() - 8]
+            .try_into()
+            .map_err(|_| "Invalid in_amount")?,
+    );
+    let quoted_out_amount = u64::from_le_bytes(
+        data[data.len() - 8..]
+            .try_into()
+            .map_err(|_| "Invalid quoted_out_amount")?,
+    );
+
+    let in_token = if accounts.len() > 2 {
+        Some(get_token_info(&accounts[2], in_amount))
+    } else {
+        None
+    };
+
+    let out_token = if accounts.len() > 3 {
+        Some(get_token_info(&accounts[3], quoted_out_amount))
+    } else {
+        None
+    };
+
+    Ok(JupiterSwapInstruction::SharedAccountsRoute {
+        in_token,
+        out_token,
+        slippage_bps: 50, // Default
+    })
+}
+
+fn format_compute_budget_instruction(
+    instruction: &solana_sdk::compute_budget::ComputeBudgetInstruction,
+) -> String {
+    use solana_sdk::compute_budget::ComputeBudgetInstruction;
+
     match instruction {
         ComputeBudgetInstruction::RequestHeapFrame(bytes) => {
             format!("Request Heap Frame: {} bytes", bytes)
@@ -134,6 +423,78 @@ fn format_compute_budget_instruction(instruction: &ComputeBudgetInstruction) -> 
             format!("Set Loaded Accounts Data Size Limit: {} bytes", bytes)
         }
         ComputeBudgetInstruction::Unused => "Unused Compute Budget Instruction".to_string(),
+    }
+}
+
+fn format_jupiter_swap_instruction(instruction: &JupiterSwapInstruction) -> String {
+    match instruction {
+        JupiterSwapInstruction::Route {
+            in_token,
+            out_token,
+            slippage_bps,
+        } => {
+            let in_display = if let Some(token) = in_token {
+                format!("{} {}", token.human_readable_amount, token.symbol)
+            } else {
+                "Unknown Token".to_string()
+            };
+
+            let out_display = if let Some(token) = out_token {
+                format!("{} {}", token.human_readable_amount, token.symbol)
+            } else {
+                "Unknown Token".to_string()
+            };
+
+            format!(
+                "Jupiter Swap: {} → {} (slippage: {}bps)",
+                in_display, out_display, slippage_bps
+            )
+        }
+        JupiterSwapInstruction::ExactOutRoute {
+            in_token,
+            out_token,
+            slippage_bps,
+        } => {
+            let in_display = if let Some(token) = in_token {
+                format!("{} {}", token.human_readable_amount, token.symbol)
+            } else {
+                "Unknown Token".to_string()
+            };
+
+            let out_display = if let Some(token) = out_token {
+                format!("{} {}", token.human_readable_amount, token.symbol)
+            } else {
+                "Unknown Token".to_string()
+            };
+
+            format!(
+                "Jupiter Exact Out Swap: {} → {} (slippage: {}bps)",
+                in_display, out_display, slippage_bps
+            )
+        }
+        JupiterSwapInstruction::SharedAccountsRoute {
+            in_token,
+            out_token,
+            slippage_bps,
+        } => {
+            let in_display = if let Some(token) = in_token {
+                format!("{} {}", token.human_readable_amount, token.symbol)
+            } else {
+                "Unknown Token".to_string()
+            };
+
+            let out_display = if let Some(token) = out_token {
+                format!("{} {}", token.human_readable_amount, token.symbol)
+            } else {
+                "Unknown Token".to_string()
+            };
+
+            format!(
+                "Jupiter Shared Route: {} → {} (slippage: {}bps)",
+                in_display, out_display, slippage_bps
+            )
+        }
+        JupiterSwapInstruction::Unknown => "Jupiter: Unknown Instruction".to_string(),
     }
 }
 
@@ -280,6 +641,23 @@ fn convert_to_visual_sign_payload(
                     }
                 }
             }
+            "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" => {
+                // Decode Jupiter swap instruction
+                // Create account list from instruction accounts
+                let instruction_accounts: Vec<String> = instruction
+                    .accounts
+                    .iter()
+                    .map(|&account_index| message.account_keys[account_index as usize].to_string())
+                    .collect();
+
+                match parse_jupiter_swap_instruction(&instruction.data, &instruction_accounts) {
+                    Ok(instruction_type) => format_jupiter_swap_instruction(&instruction_type),
+                    Err(err) => {
+                        println!("Failed to parse Jupiter swap instruction: {}", err);
+                        "Unknown Instruction".to_string()
+                    }
+                }
+            }
 
             _ => "Unknown Program ID".to_string(),
         };
@@ -350,6 +728,28 @@ fn convert_to_visual_sign_payload(
                     }
                 } else {
                     create_default_expanded_fields(program_id, &instruction.data)
+                }
+            }
+            "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4" => {
+                // Create account list from instruction accounts
+                let instruction_accounts: Vec<String> = instruction
+                    .accounts
+                    .iter()
+                    .map(|&account_index| message.account_keys[account_index as usize].to_string())
+                    .collect();
+
+                if let Ok(instruction_type) =
+                    parse_jupiter_swap_instruction(&instruction.data, &instruction_accounts)
+                {
+                    SignablePayloadFieldListLayout {
+                        fields: create_jupiter_swap_expanded_fields(
+                            &instruction_type,
+                            &program_id,
+                            &instruction.data,
+                        ),
+                    }
+                } else {
+                    create_default_expanded_fields(&program_id, &instruction.data)
                 }
             }
             _ => create_default_expanded_fields(&program_id, &instruction.data),
@@ -552,6 +952,23 @@ fn get_stake_pool_instruction_name(instruction: &StakePoolInstruction) -> &'stat
     }
 }
 
+fn create_sol_amount_field(label: &str, lamports: u64) -> AnnotatedPayloadField {
+    let sol_value = lamports as f64 / 1_000_000_000.0;
+    AnnotatedPayloadField {
+        static_annotation: None,
+        dynamic_annotation: None,
+        signable_payload_field: SignablePayloadField::AmountV2 {
+            common: SignablePayloadFieldCommon {
+                fallback_text: format!("{} SOL", sol_value),
+                label: label.to_string(),
+            },
+            amount_v2: visualsign::SignablePayloadFieldAmountV2 {
+                amount: lamports.to_string(),
+                abbreviation: Some("lamports".to_string()),
+            },
+        },
+    }
+}
 fn create_compute_budget_expanded_fields(
     instruction: &ComputeBudgetInstruction,
     program_id: &str,
@@ -612,24 +1029,12 @@ fn create_system_instruction_expanded_fields(
             space,
             owner,
         } => {
-            fields.push(create_amount_field(
-                "Amount",
-                &lamports.to_string(),
-                "lamports",
-                *lamports as f64 / 1_000_000_000.0,
-                "SOL",
-            ));
+            fields.push(create_sol_amount_field("Amount", *lamports));
             fields.push(create_number_field("Space", &space.to_string(), "bytes"));
             fields.push(create_text_field("Owner", &owner.to_string()));
         }
         SystemInstruction::Transfer { lamports } => {
-            fields.push(create_amount_field(
-                "Transfer Amount",
-                &lamports.to_string(),
-                "lamports",
-                *lamports as f64 / 1_000_000_000.0,
-                "SOL",
-            ));
+            fields.push(create_sol_amount_field("Transfer Amount", *lamports));
         }
         SystemInstruction::Assign { owner } => {
             fields.push(create_text_field("New Owner", &owner.to_string()));
@@ -643,7 +1048,7 @@ fn create_system_instruction_expanded_fields(
                 "Instruction Details",
                 &format!("{:?}", instruction),
             ));
-        }
+        } // TODO: add expansion for rest of the SystemInstruction enums
     }
 
     fields.push(create_text_field("Raw Data", &hex::encode(data)));
@@ -657,6 +1062,138 @@ fn create_default_expanded_fields(program_id: &str, data: &[u8]) -> SignablePayl
             create_text_field("Raw Data", &hex::encode(data)),
         ],
     }
+}
+
+fn create_jupiter_swap_expanded_fields(
+    instruction: &JupiterSwapInstruction,
+    program_id: &str,
+    data: &[u8],
+) -> Vec<AnnotatedPayloadField> {
+    let mut fields = vec![create_text_field("Program ID", program_id)];
+
+    // Add specific fields based on instruction type
+    match instruction {
+        JupiterSwapInstruction::Route {
+            in_token,
+            out_token,
+            slippage_bps,
+        } => {
+            if let Some(token) = in_token {
+                fields.push(create_text_field("Input Token", &token.symbol));
+                fields.push(create_amount_field(
+                    "Input Amount",
+                    &token.human_readable_amount,
+                    &token.symbol,
+                ));
+                if !token.name.is_empty() && token.name != token.symbol {
+                    fields.push(create_text_field("Input Token Name", &token.name));
+                }
+                fields.push(create_text_field("Input Token Address", &token.address));
+            }
+
+            if let Some(token) = out_token {
+                fields.push(create_text_field("Output Token", &token.symbol));
+                fields.push(create_amount_field(
+                    "Quoted Output Amount",
+                    &token.human_readable_amount,
+                    &token.symbol,
+                ));
+                if !token.name.is_empty() && token.name != token.symbol {
+                    fields.push(create_text_field("Output Token Name", &token.name));
+                }
+                fields.push(create_text_field("Output Token Address", &token.address));
+            }
+
+            fields.push(create_number_field(
+                "Slippage",
+                &slippage_bps.to_string(),
+                "bps",
+            ));
+        }
+        JupiterSwapInstruction::ExactOutRoute {
+            in_token,
+            out_token,
+            slippage_bps,
+        } => {
+            if let Some(token) = in_token {
+                fields.push(create_text_field("Input Token", &token.symbol));
+                fields.push(create_amount_field(
+                    "Max Input Amount",
+                    &token.human_readable_amount,
+                    &token.symbol,
+                ));
+                if !token.name.is_empty() && token.name != token.symbol {
+                    fields.push(create_text_field("Input Token Name", &token.name));
+                }
+                fields.push(create_text_field("Input Token Address", &token.address));
+            }
+
+            if let Some(token) = out_token {
+                fields.push(create_text_field("Output Token", &token.symbol));
+                fields.push(create_amount_field(
+                    "Exact Output Amount",
+                    &token.human_readable_amount,
+                    &token.symbol,
+                ));
+                if !token.name.is_empty() && token.name != token.symbol {
+                    fields.push(create_text_field("Output Token Name", &token.name));
+                }
+                fields.push(create_text_field("Output Token Address", &token.address));
+            }
+
+            fields.push(create_number_field(
+                "Slippage",
+                &slippage_bps.to_string(),
+                "bps",
+            ));
+        }
+        JupiterSwapInstruction::SharedAccountsRoute {
+            in_token,
+            out_token,
+            slippage_bps,
+        } => {
+            if let Some(token) = in_token {
+                fields.push(create_text_field("Input Token", &token.symbol));
+                fields.push(create_amount_field(
+                    "Input Amount",
+                    &token.human_readable_amount,
+                    &token.symbol,
+                ));
+                if !token.name.is_empty() && token.name != token.symbol {
+                    fields.push(create_text_field("Input Token Name", &token.name));
+                }
+                fields.push(create_text_field("Input Token Address", &token.address));
+            }
+
+            if let Some(token) = out_token {
+                fields.push(create_text_field("Output Token", &token.symbol));
+                fields.push(create_amount_field(
+                    "Quoted Output Amount",
+                    &token.human_readable_amount,
+                    &token.symbol,
+                ));
+                if !token.name.is_empty() && token.name != token.symbol {
+                    fields.push(create_text_field("Output Token Name", &token.name));
+                }
+                fields.push(create_text_field("Output Token Address", &token.address));
+            }
+
+            fields.push(create_number_field(
+                "Slippage",
+                &slippage_bps.to_string(),
+                "bps",
+            ));
+        }
+        JupiterSwapInstruction::Unknown => {
+            fields.push(create_text_field(
+                "Instruction Type",
+                "Unknown Jupiter Instruction",
+            ));
+        }
+    }
+
+    fields.push(create_text_field("Raw Data", &hex::encode(data)));
+    fields
 }
 
 #[cfg(test)]
@@ -804,8 +1341,9 @@ mod tests {
     #[test]
     fn test_format_compute_budget_instruction_string_output() {
         // Test that the string formatting doesn't include number formatting
-        let instruction = ComputeBudgetInstruction::SetComputeUnitLimit(1400000);
-        let result = format_compute_budget_instruction(&instruction);
+        let compute_budget_instruction =
+            solana_sdk::compute_budget::ComputeBudgetInstruction::SetComputeUnitLimit(1400000);
+        let result = format_compute_budget_instruction(&compute_budget_instruction);
 
         assert_eq!(result, "Set Compute Unit Limit: 1400000 units");
         // Ensure no comma formatting in the string output
@@ -1360,5 +1898,498 @@ mod tests {
                 assert!(has_program_id_field, "Should have Program ID field");
             }
         }
+    }
+
+    #[test]
+    fn test_parse_jupiter_swap_instruction() {
+        // Test Route instruction with discriminator [0x2a, 0xad, 0xe3, 0x7a, 0x97, 0xcb, 0x17, 0xe5]
+        let route_data = vec![
+            0x2a, 0xad, 0xe3, 0x7a, 0x97, 0xcb, 0x17, 0xe5, // discriminator
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // padding/route plan
+            0x40, 0x42, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, // in_amount: 1000000
+            0x80, 0x84, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, // quoted_out_amount: 2000000
+        ];
+
+        // Mock accounts for testing
+        let accounts = vec![
+            "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string(), // Jupiter program
+            "11111111111111111111111111111111".to_string(),            // SOL
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".to_string(), // USDC mint
+            "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB".to_string(), // USDT mint
+        ];
+
+        let result = parse_jupiter_swap_instruction(&route_data, &accounts);
+        assert!(result.is_ok());
+
+        match result.unwrap() {
+            JupiterSwapInstruction::Route {
+                in_token,
+                out_token,
+                ..
+            } => {
+                assert!(in_token.is_some());
+                assert!(out_token.is_some());
+
+                let in_token = in_token.unwrap();
+                let out_token = out_token.unwrap();
+
+                assert_eq!(in_token.amount, 1000000);
+                assert_eq!(out_token.amount, 2000000);
+                assert_eq!(in_token.symbol, "USDC");
+                assert_eq!(out_token.symbol, "USDT");
+            }
+            _ => panic!("Expected Route instruction"),
+        }
+
+        // Test with invalid data
+        let invalid_data = vec![0x00, 0x01, 0x02];
+        let invalid_result = parse_jupiter_swap_instruction(&invalid_data, &accounts);
+        assert!(invalid_result.is_err());
+
+        // Test with unknown discriminator
+        let unknown_data = vec![
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // unknown discriminator
+            0x40, 0x42, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84, 0x1e, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x40, 0x42, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84, 0x1e, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ];
+
+        let unknown_result = parse_jupiter_swap_instruction(&unknown_data, &accounts);
+        assert!(unknown_result.is_ok());
+
+        match unknown_result.unwrap() {
+            JupiterSwapInstruction::Unknown => {
+                // This is expected
+            }
+            _ => panic!("Expected Unknown instruction"),
+        }
+    }
+
+    #[test]
+    fn test_format_jupiter_swap_instruction() {
+        let usdc_token = SwapTokenInfo {
+            address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".to_string(),
+            symbol: "USDC".to_string(),
+            name: "USD Coin".to_string(),
+            decimals: 6,
+            amount: 1000000,
+            human_readable_amount: "1".to_string(),
+        };
+
+        let usdt_token = SwapTokenInfo {
+            address: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB".to_string(),
+            symbol: "USDT".to_string(),
+            name: "Tether USD".to_string(),
+            decimals: 6,
+            amount: 2000000,
+            human_readable_amount: "2".to_string(),
+        };
+
+        let route = JupiterSwapInstruction::Route {
+            in_token: Some(usdc_token.clone()),
+            out_token: Some(usdt_token.clone()),
+            slippage_bps: 50,
+        };
+
+        let formatted = format_jupiter_swap_instruction(&route);
+        assert_eq!(formatted, "Jupiter Swap: 1 USDC → 2 USDT (slippage: 50bps)");
+
+        let exact_out = JupiterSwapInstruction::ExactOutRoute {
+            in_token: Some(usdc_token),
+            out_token: Some(usdt_token),
+            slippage_bps: 100,
+        };
+
+        let formatted_exact = format_jupiter_swap_instruction(&exact_out);
+        assert_eq!(
+            formatted_exact,
+            "Jupiter Exact Out Swap: 1 USDC → 2 USDT (slippage: 100bps)"
+        );
+
+        let unknown = JupiterSwapInstruction::Unknown;
+        let formatted_unknown = format_jupiter_swap_instruction(&unknown);
+        assert_eq!(formatted_unknown, "Jupiter: Unknown Instruction");
+    }
+
+    #[test]
+    fn test_jupiter_swap_expanded_fields() {
+        let usdc_token = SwapTokenInfo {
+            address: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".to_string(),
+            symbol: "USDC".to_string(),
+            name: "USD Coin".to_string(),
+            decimals: 6,
+            amount: 1000000,
+            human_readable_amount: "1".to_string(),
+        };
+
+        let usdt_token = SwapTokenInfo {
+            address: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB".to_string(),
+            symbol: "USDT".to_string(),
+            name: "Tether USD".to_string(),
+            decimals: 6,
+            amount: 2000000,
+            human_readable_amount: "2".to_string(),
+        };
+
+        let route = JupiterSwapInstruction::Route {
+            in_token: Some(usdc_token),
+            out_token: Some(usdt_token),
+            slippage_bps: 50,
+        };
+
+        let program_id = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+        let data = vec![0x01, 0x02, 0x03];
+
+        let fields = create_jupiter_swap_expanded_fields(&route, program_id, &data);
+
+        // Should have: Program ID + Input Token + Input Amount + Input Token Name + Input Token Address +
+        //             Output Token + Output Amount + Output Token Name + Output Token Address + Slippage + Raw Data
+        assert!(fields.len() >= 5); // At least Program ID + tokens info + slippage + raw data
+
+        // Check Program ID field (first)
+        match &fields[0].signable_payload_field {
+            SignablePayloadField::TextV2 { common, text_v2 } => {
+                assert_eq!(common.label, "Program ID");
+                assert_eq!(text_v2.text, program_id);
+            }
+            _ => panic!("Expected TextV2 field for Program ID"),
+        }
+
+        // Check that we have input token information
+        let has_input_token = fields.iter().any(|field| {
+            if let SignablePayloadField::TextV2 { common, text_v2 } = &field.signable_payload_field
+            {
+                common.label == "Input Token" && text_v2.text == "USDC"
+            } else {
+                false
+            }
+        });
+        assert!(has_input_token, "Should have input token field");
+
+        // Check that we have output token information
+        let has_output_token = fields.iter().any(|field| {
+            if let SignablePayloadField::TextV2 { common, text_v2 } = &field.signable_payload_field
+            {
+                common.label == "Output Token" && text_v2.text == "USDT"
+            } else {
+                false
+            }
+        });
+        assert!(has_output_token, "Should have output token field");
+
+        // Check slippage field
+        let has_slippage = fields.iter().any(|field| {
+            if let SignablePayloadField::Number { common, number } = &field.signable_payload_field {
+                common.label == "Slippage" && number.number == "50"
+            } else {
+                false
+            }
+        });
+        assert!(has_slippage, "Should have slippage field");
+    }
+
+    #[test]
+    fn test_jupiter_swap_integration() {
+        // Create a minimal transaction with a Jupiter swap instruction
+        use solana_sdk::{message::Message, pubkey::Pubkey};
+        use std::str::FromStr;
+
+        let jupiter_program_id =
+            Pubkey::from_str("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4").unwrap();
+
+        // Create a mock Jupiter Route instruction
+        let instruction_data = vec![
+            0x2a, 0xad, 0xe3, 0x7a, 0x97, 0xcb, 0x17, 0xe5, // Route discriminator
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // route plan (simplified)
+            0x40, 0x42, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, // in_amount: 1000000
+            0x80, 0x84, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, // quoted_out_amount: 2000000
+        ];
+
+        let accounts = vec![
+            solana_sdk::instruction::AccountMeta::new_readonly(Pubkey::new_unique(), false), // token_program
+            solana_sdk::instruction::AccountMeta::new(Pubkey::new_unique(), true), // user_transfer_authority
+            solana_sdk::instruction::AccountMeta::new(Pubkey::new_unique(), false), // user_source_token_account
+            solana_sdk::instruction::AccountMeta::new(Pubkey::new_unique(), false), // user_destination_token_account
+        ];
+
+        let instruction = solana_sdk::instruction::Instruction {
+            program_id: jupiter_program_id,
+            accounts,
+            data: instruction_data,
+        };
+
+        let payer = Pubkey::new_unique();
+        let message = Message::new(&[instruction], Some(&payer));
+        let transaction = solana_sdk::transaction::Transaction::new_unsigned(message);
+
+        // Convert to visual sign payload
+        let options = VisualSignOptions {
+            decode_transfers: false,
+            transaction_name: Some("Test Jupiter Swap Transaction".to_string()),
+        };
+
+        let payload = convert_to_visual_sign_payload(transaction, false, options.transaction_name);
+
+        // Find the Jupiter instruction in the payload
+        let jupiter_instruction = payload
+            .fields
+            .iter()
+            .find(|field| {
+                if let SignablePayloadField::PreviewLayout { preview_layout, .. } = field {
+                    if let Some(title) = &preview_layout.title {
+                        println!("Found instruction with title: {}", title.text);
+                        title.text.contains("Jupiter")
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            })
+            .expect("Should find Jupiter swap instruction");
+
+        // Check that it has the expanded view with proper field types
+        if let SignablePayloadField::PreviewLayout { preview_layout, .. } = jupiter_instruction {
+            if let Some(expanded) = &preview_layout.expanded {
+                // Should have at least: Program ID + token info fields + slippage + raw data
+                assert!(expanded.fields.len() >= 5);
+
+                // Check that we have Program ID field
+                let has_program_id =
+                    expanded
+                        .fields
+                        .iter()
+                        .any(|field| match &field.signable_payload_field {
+                            SignablePayloadField::TextV2 { common, text_v2 } => {
+                                common.label == "Program ID" && text_v2.text.contains("JUP6")
+                            }
+                            _ => false,
+                        });
+                assert!(has_program_id, "Should have Program ID field");
+
+                // Check that we have input token information
+                let has_input_amount =
+                    expanded
+                        .fields
+                        .iter()
+                        .any(|field| match &field.signable_payload_field {
+                            SignablePayloadField::AmountV2 { common, .. } => {
+                                common.label == "Input Amount"
+                            }
+                            _ => false,
+                        });
+                assert!(has_input_amount, "Should have Input Amount field");
+
+                // Check that we have slippage field
+                let has_slippage =
+                    expanded
+                        .fields
+                        .iter()
+                        .any(|field| match &field.signable_payload_field {
+                            SignablePayloadField::Number { common, .. } => {
+                                common.label == "Slippage"
+                            }
+                            _ => false,
+                        });
+                assert!(has_slippage, "Should have Slippage field");
+            }
+        }
+    }
+
+    #[test]
+    fn test_analyze_real_jupiter_data() {
+        // Real Jupiter swap data that's not being recognized
+        let hex_data =
+            "c1209b3341d69c810002000000386400013d00640102a086010000000000164a000000000000320000";
+        let data = hex::decode(hex_data).expect("Invalid hex data");
+
+        println!("Data length: {}", data.len());
+        println!("First 8 bytes (discriminator): {:?}", &data[0..8]);
+        println!("First 8 bytes as hex: {:02x?}", &data[0..8]);
+
+        // Mock accounts for testing
+        let accounts = vec![
+            "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string(),
+            "11111111111111111111111111111111".to_string(),
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".to_string(),
+            "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB".to_string(),
+        ];
+
+        // Test if our current parser recognizes it
+        match parse_jupiter_swap_instruction(&data, &accounts) {
+            Ok(instruction) => {
+                println!("Parsed as: {:?}", instruction);
+                // Should now be parsed as a Route instruction (not Unknown)
+                match instruction {
+                    JupiterSwapInstruction::Route { .. } => {
+                        println!("✓ Successfully recognized as Jupiter Route instruction");
+                    }
+                    JupiterSwapInstruction::Unknown => {
+                        panic!("Real Jupiter data should not be Unknown anymore!");
+                    }
+                    _ => {
+                        println!("Parsed as different instruction type: {:?}", instruction);
+                    }
+                }
+            }
+            Err(e) => println!("Parse error: {}", e),
+        }
+
+        // Test against our known discriminators
+        let discriminator = &data[0..8];
+        match discriminator {
+            [0xc1, 0x20, 0x9b, 0x33, 0x41, 0xd6, 0x9c, 0x81] => {
+                println!("✓ Matches real-world Jupiter Route")
+            }
+            [0x2a, 0xad, 0xe3, 0x7a, 0x97, 0xcb, 0x17, 0xe5] => println!("Matches Route"),
+            [0x2a, 0xb6, 0xd0, 0x0c, 0xa8, 0xdf, 0xd7, 0x4b] => println!("Matches ExactOutRoute"),
+            [0x2a, 0xd4, 0xb6, 0x2f, 0xae, 0xaa, 0xf2, 0x3a] => {
+                println!("Matches SharedAccountsRoute")
+            }
+            _ => println!("Unknown discriminator: {:02x?}", discriminator),
+        }
+    }
+
+    #[test]
+    fn test_end_to_end_real_jupiter_parsing() {
+        // Test that a real Jupiter swap instruction is correctly parsed through the main parser
+        let hex_data =
+            "c1209b3341d69c810002000000386400013d00640102a086010000000000164a000000000000320000";
+        let data = hex::decode(hex_data).expect("Invalid hex data");
+
+        // Mock account addresses for testing
+        let accounts = vec![
+            "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string(), // Jupiter program
+            "11111111111111111111111111111111".to_string(),            // SOL
+            "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v".to_string(), // USDC mint
+            "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB".to_string(), // USDT mint
+            "SysvarRent111111111111111111111111111111111".to_string(), // Sysvar Rent
+            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA".to_string(), // Token Program
+        ];
+
+        match parse_jupiter_swap_instruction(&data, &accounts) {
+            Ok(parsed_instruction) => {
+                let formatted = format_jupiter_swap_instruction(&parsed_instruction);
+                println!("Parsed instruction: {}", formatted);
+
+                // Should contain "Jupiter" but not "Unknown"
+                assert!(
+                    formatted.contains("Jupiter"),
+                    "Should contain 'Jupiter': {}",
+                    formatted
+                );
+                assert!(
+                    !formatted.contains("Unknown"),
+                    "Should not contain 'Unknown': {}",
+                    formatted
+                );
+
+                // Should have token information
+                match parsed_instruction {
+                    JupiterSwapInstruction::Route {
+                        in_token,
+                        out_token,
+                        ..
+                    }
+                    | JupiterSwapInstruction::ExactOutRoute {
+                        in_token,
+                        out_token,
+                        ..
+                    }
+                    | JupiterSwapInstruction::SharedAccountsRoute {
+                        in_token,
+                        out_token,
+                        ..
+                    } => {
+                        // At least one token should be recognized
+                        assert!(
+                            in_token.is_some() || out_token.is_some(),
+                            "Should have at least one recognized token"
+                        );
+                    }
+                    JupiterSwapInstruction::Unknown => {
+                        panic!("Should not parse as Unknown instruction");
+                    }
+                }
+            }
+            Err(e) => {
+                panic!("Failed to parse Jupiter instruction: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_format_token_amount() {
+        // Test with USDC (6 decimals)
+        assert_eq!(format_token_amount(1000000, 6), "1");
+        assert_eq!(format_token_amount(1500000, 6), "1.5");
+        assert_eq!(format_token_amount(1050000, 6), "1.05");
+        assert_eq!(format_token_amount(1000001, 6), "1.000001");
+
+        // Test with SOL (9 decimals)
+        assert_eq!(format_token_amount(1000000000, 9), "1");
+        assert_eq!(format_token_amount(1500000000, 9), "1.5");
+        assert_eq!(format_token_amount(1050000000, 9), "1.05");
+
+        // Test with BONK (5 decimals)
+        assert_eq!(format_token_amount(100000, 5), "1");
+        assert_eq!(format_token_amount(150000, 5), "1.5");
+
+        // Test with 0 decimals
+        assert_eq!(format_token_amount(1000, 0), "1000");
+
+        // Test with small amounts
+        assert_eq!(format_token_amount(1, 6), "0.000001");
+        assert_eq!(format_token_amount(100, 6), "0.0001");
+    }
+
+    #[test]
+    fn test_get_token_info() {
+        // Test with known USDC
+        let usdc_info = get_token_info("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", 1000000);
+        assert_eq!(usdc_info.symbol, "USDC");
+        assert_eq!(usdc_info.name, "USD Coin");
+        assert_eq!(usdc_info.decimals, 6);
+        assert_eq!(usdc_info.amount, 1000000);
+        assert_eq!(usdc_info.human_readable_amount, "1");
+
+        // Test with unknown token
+        let unknown_info = get_token_info("UnknownTokenAddress123456789", 500000);
+        assert_eq!(unknown_info.symbol, "Unkn...6789");
+        assert!(unknown_info.name.contains("Unknown Token"));
+        assert_eq!(unknown_info.decimals, 0);
+        assert_eq!(unknown_info.amount, 500000);
+        assert_eq!(unknown_info.human_readable_amount, "500000");
+
+        // Test with SOL
+        let sol_info = get_token_info("11111111111111111111111111111111", 2000000000);
+        assert_eq!(sol_info.symbol, "SOL");
+        assert_eq!(sol_info.name, "Solana");
+        assert_eq!(sol_info.decimals, 9);
+        assert_eq!(sol_info.human_readable_amount, "2");
+    }
+
+    #[test]
+    fn test_token_lookup_table() {
+        let tokens = get_token_lookup_table();
+
+        // Test some key tokens are present
+        assert!(tokens.contains_key("11111111111111111111111111111111")); // SOL
+        assert!(tokens.contains_key("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")); // USDC
+        assert!(tokens.contains_key("Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB")); // USDT
+
+        // Verify SOL details
+        let sol = tokens.get("11111111111111111111111111111111").unwrap();
+        assert_eq!(sol.symbol, "SOL");
+        assert_eq!(sol.name, "Solana");
+        assert_eq!(sol.decimals, 9);
+
+        // Verify USDC details
+        let usdc = tokens
+            .get("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v")
+            .unwrap();
+        assert_eq!(usdc.symbol, "USDC");
+        assert_eq!(usdc.name, "USD Coin");
+        assert_eq!(usdc.decimals, 6);
     }
 }

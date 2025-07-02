@@ -36,19 +36,13 @@ pub fn create_number_field(label: &str, number: &str, unit: &str) -> AnnotatedPa
     }
 }
 
-pub fn create_amount_field(
-    label: &str,
-    amount: &str,
-    abbreviation: &str,
-    value: f64,
-    asset_type: &str,
-) -> AnnotatedPayloadField {
+pub fn create_amount_field(label: &str, amount: &str, abbreviation: &str) -> AnnotatedPayloadField {
     AnnotatedPayloadField {
         static_annotation: None,
         dynamic_annotation: None,
         signable_payload_field: SignablePayloadField::AmountV2 {
             common: SignablePayloadFieldCommon {
-                fallback_text: format!("{} {}", value, asset_type),
+                fallback_text: format!("{} {}", amount, abbreviation),
                 label: label.to_string(),
             },
             amount_v2: SignablePayloadFieldAmountV2 {
@@ -59,12 +53,25 @@ pub fn create_amount_field(
     }
 }
 
+fn default_hex_representation(data: &[u8]) -> String {
+    data.iter()
+        .map(|byte| format!("{:02x}", byte))
+        .collect::<Vec<String>>()
+        .join("")
+}
+
 /// Create a standard Raw Data field for expanded views
-pub fn create_raw_data_field(data: &[u8]) -> AnnotatedPayloadField {
+pub fn create_raw_data_field(
+    data: &[u8],
+    optional_fallback_string: Option<String>,
+) -> AnnotatedPayloadField {
+    let raw_data_fallback_string =
+        optional_fallback_string.unwrap_or_else(|| default_hex_representation(data));
+
     AnnotatedPayloadField {
         signable_payload_field: SignablePayloadField::TextV2 {
             common: SignablePayloadFieldCommon {
-                fallback_text: "The raw instruction data in base64 format".to_string(),
+                fallback_text: raw_data_fallback_string.to_string(),
                 label: "Raw Data".to_string(),
             },
             text_v2: SignablePayloadFieldTextV2 {
