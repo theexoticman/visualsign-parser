@@ -353,7 +353,7 @@ fn convert_to_visual_sign_payload(
                         )],
                     }
                 } else {
-                    create_default_expanded_fields(&program_id, &instruction.data)
+                    create_default_expanded_fields(program_id, &instruction.data)
                 }
             }
             _ => create_default_expanded_fields(&program_id, &instruction.data),
