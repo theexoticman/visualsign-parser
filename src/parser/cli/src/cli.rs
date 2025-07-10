@@ -1,0 +1,90 @@
+use clap::{Arg, Command};
+use std::process;
+
+use crate::chains;
+use chains::{available_chains, parse_chain};
+use visualsign::vsptrait::VisualSignOptions;
+
+fn create_registry() -> visualsign::registry::TransactionConverterRegistry {
+    let mut registry = visualsign::registry::TransactionConverterRegistry::new();
+    registry.register::<visualsign_solana::SolanaTransactionWrapper, _>(
+        visualsign::registry::Chain::Solana,
+        visualsign_solana::SolanaVisualSignConverter,
+    );
+    //registry.register::<visualsign_ethereum::EthereumTransactionWrapper, _>(
+    //    visualsign::registry::Chain::Ethereum,
+    //    visualsign_ethereum::EthereumVisualSignConverter,
+    //);
+    registry.register::<visualsign_unspecified::UnspecifiedTransactionWrapper, _>(
+        visualsign::registry::Chain::Unspecified,
+        visualsign_unspecified::UnspecifiedVisualSignConverter,
+    );
+    registry
+}
+
+fn parse_and_display(
+    chain: &str,
+    raw_tx: &str,
+    options: VisualSignOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let registry_chain = parse_chain(chain);
+
+    let registry = create_registry();
+    let signable_payload_str = registry.convert_transaction(&registry_chain, raw_tx, options);
+
+    println!("Visual Signing Properties:");
+    println!("========================");
+    println!("Chain: {}", chain);
+    println!("Transaction: {}", raw_tx);
+    println!("Properties: {:#?}", signable_payload_str);
+
+    Ok(())
+}
+
+/// app cli
+pub struct Cli;
+impl Cli {
+    /// Executes the CLI application, parsing command line arguments and processing the transaction
+    pub fn execute() {
+        let chains = available_chains();
+        let chain_help = format!("Chain type ({})", chains.join(", "));
+
+        let matches = Command::new("visualsign-parser")
+            .version("1.0")
+            .about("Converts raw transactions to visual signing properties")
+            .arg(
+                Arg::new("chain")
+                    .short('c')
+                    .long("chain")
+                    .value_name("CHAIN")
+                    .help(&chain_help)
+                    .value_parser(chains.clone())
+                    .required(true),
+            )
+            .arg(
+                Arg::new("transaction")
+                    .short('t')
+                    .long("transaction")
+                    .value_name("RAW_TX")
+                    .help("Raw transaction hex string")
+                    .required(true),
+            )
+            .get_matches();
+
+        let chain = matches.get_one::<String>("chain").unwrap();
+        let raw_tx = matches.get_one::<String>("transaction").unwrap();
+
+        let options = VisualSignOptions {
+            decode_transfers: true,
+            transaction_name: None,
+        };
+
+        match parse_and_display(chain, raw_tx, options) {
+            Ok(()) => {}
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
+        }
+    }
+}
