@@ -22,11 +22,7 @@ fn create_registry() -> visualsign::registry::TransactionConverterRegistry {
     registry
 }
 
-fn parse_and_display(
-    chain: &str,
-    raw_tx: &str,
-    options: VisualSignOptions,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn parse_and_display(chain: &str, raw_tx: &str, options: VisualSignOptions) -> () {
     let registry_chain = parse_chain(chain);
 
     let registry = create_registry();
@@ -34,16 +30,18 @@ fn parse_and_display(
 
     println!("Visual Signing Properties:");
     println!("========================");
-    println!("Chain: {}", chain);
-    println!("Transaction: {}", raw_tx);
-    println!("Properties: {:#?}", signable_payload_str);
-
-    Ok(())
+    println!("Chain: {chain}");
+    println!("Transaction: {raw_tx}");
+    println!("Properties: {signable_payload_str:#?}");
 }
 
 /// app cli
 pub struct Cli;
 impl Cli {
+    /// start the parser cli
+    ///
+    /// # Panics
+    ///
     /// Executes the CLI application, parsing command line arguments and processing the transaction
     pub fn execute() {
         let chains = available_chains();
@@ -71,8 +69,12 @@ impl Cli {
             )
             .get_matches();
 
-        let chain = matches.get_one::<String>("chain").unwrap();
-        let raw_tx = matches.get_one::<String>("transaction").unwrap();
+        let chain = matches
+            .get_one::<String>("chain")
+            .expect("Chain is required");
+        let raw_tx = matches
+            .get_one::<String>("transaction")
+            .expect("Transaction is required");
 
         let options = VisualSignOptions {
             decode_transfers: true,
@@ -82,7 +84,7 @@ impl Cli {
         match parse_and_display(chain, raw_tx, options) {
             Ok(()) => {}
             Err(e) => {
-                eprintln!("Error: {}", e);
+                eprintln!("Error: {e}");
                 process::exit(1);
             }
         }

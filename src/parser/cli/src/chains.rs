@@ -13,7 +13,8 @@ fn chain_string_mapping() -> HashMap<&'static str, Chain> {
 }
 
 /// Parses a chain string into a Chain enum value.
-/// Returns Chain::Unspecified if the chain string is not recognized.
+/// Returns `Chain::Unspecified` if the chain string is not recognized.
+#[must_use]
 pub fn parse_chain(chain_str: &str) -> Chain {
     chain_string_mapping()
         .get(chain_str)
@@ -22,6 +23,7 @@ pub fn parse_chain(chain_str: &str) -> Chain {
 }
 
 /// Returns a vector of all available chain names as string slices.
+#[must_use]
 pub fn available_chains() -> Vec<&'static str> {
     chain_string_mapping().keys().copied().collect()
 }
