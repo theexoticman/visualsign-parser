@@ -1,37 +1,42 @@
-use crate::{TransactionEncoding, parse_sui_transaction};
+use crate::commands::{CoinObject, TransferInfo, detect_transfer_from_transaction};
+use crate::field_helpers::{
+    create_address_field, create_amount_field, create_simple_text_field, create_text_field,
+};
+use crate::module_resolver::SuiModuleResolver;
+
+use base64::Engine;
+
+use move_bytecode_utils::module_cache::SyncModuleCache;
 
 use sui_json_rpc_types::{
-    SuiTransactionBlock, SuiTransactionBlockData, SuiTransactionBlockDataAPI,
-    SuiTransactionBlockKind,
+    SuiTransactionBlock, SuiTransactionBlockDataAPI, SuiTransactionBlockKind,
 };
+use sui_types::transaction::SenderSignedData;
 
-use crate::commands::{TransferInfo, detect_transfer_from_transaction};
 use visualsign::{
-    SignablePayload, SignablePayloadField, SignablePayloadFieldAddressV2,
-    SignablePayloadFieldAmountV2, SignablePayloadFieldCommon, SignablePayloadFieldTextV2,
+    AnnotatedPayloadField, SignablePayload, SignablePayloadField, SignablePayloadFieldCommon,
+    SignablePayloadFieldListLayout, SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
+    encodings::SupportedEncodings,
     vsptrait::{
         Transaction, TransactionParseError, VisualSignConverter, VisualSignConverterFromString,
         VisualSignError, VisualSignOptions,
     },
 };
 
-/// Wrapper for SuiTransactionBlock to implement the Transaction trait
+/// Wrapper around Sui's transaction type that implements the Transaction trait
 #[derive(Debug, Clone)]
 pub struct SuiTransactionWrapper {
-    pub transaction_block: SuiTransactionBlock,
-    pub raw_data: String,
+    transaction: SuiTransactionBlock,
 }
 
 impl Transaction for SuiTransactionWrapper {
-    fn from_string(data: &str) -> anyhow::Result<Self, TransactionParseError> {
-        let encoding = TransactionEncoding::Base64;
-        match parse_sui_transaction(data.to_string(), encoding) {
-            Ok(transaction_block) => Ok(SuiTransactionWrapper {
-                transaction_block,
-                raw_data: data.to_string(),
-            }),
-            Err(e) => Err(TransactionParseError::InvalidFormat(e.to_string())),
-        }
+    fn from_string(data: &str) -> Result<Self, TransactionParseError> {
+        let format = SupportedEncodings::detect(data);
+
+        let transaction = decode_transaction(data, format)
+            .map_err(|e| TransactionParseError::DecodeError(e.to_string()))?;
+
+        Ok(Self { transaction })
     }
 
     fn transaction_type(&self) -> String {
@@ -39,216 +44,318 @@ impl Transaction for SuiTransactionWrapper {
     }
 }
 
-/// Converter for Sui transactions to VSP format
-pub struct SuiTransactionConverter;
+impl SuiTransactionWrapper {
+    /// Create a new SuiTransactionWrapper
+    pub fn new(transaction: SuiTransactionBlock) -> Self {
+        Self { transaction }
+    }
 
-impl VisualSignConverter<SuiTransactionWrapper> for SuiTransactionConverter {
-    fn to_visual_sign_payload(
-        &self,
-        transaction: SuiTransactionWrapper,
-        _options: VisualSignOptions,
-    ) -> anyhow::Result<SignablePayload, VisualSignError> {
-        let tx_block = &transaction.transaction_block;
-
-        let transfer_list = detect_transfer_from_transaction(tx_block);
-
-        let mut fields = Vec::new();
-
-        fields.push(SignablePayloadField::TextV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: "Sui Network".to_string(),
-                label: "Network".to_string(),
-            },
-            text_v2: SignablePayloadFieldTextV2 {
-                text: "Sui Network".to_string(),
-            },
-        });
-
-        let tx_data: &SuiTransactionBlockData = &tx_block.data;
-
-        fields.push(SignablePayloadField::AddressV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: tx_data.sender().to_string(),
-                label: "From".to_string(),
-            },
-            address_v2: SignablePayloadFieldAddressV2 {
-                address: tx_data.sender().to_string(),
-                name: "".to_string(),
-                memo: None,
-                asset_label: "".to_string(),
-                badge_text: None,
-            },
-        });
-
-        // Add transfer-specific fields if this is a transfer
-        for transfer in transfer_list {
-            fields.extend(transfer_info_to_vsp(&transfer));
-        }
-
-        // Add gas owner
-        fields.push(SignablePayloadField::AddressV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: tx_data.gas_data().owner.to_string(),
-                label: "Gas Owner".to_string(),
-            },
-            address_v2: SignablePayloadFieldAddressV2 {
-                address: tx_data.gas_data().owner.to_string(),
-                name: "".to_string(),
-                memo: None,
-                asset_label: "".to_string(),
-                badge_text: None,
-            },
-        });
-
-        // Add gas budget
-        fields.push(SignablePayloadField::AmountV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: format!("{} MIST", tx_data.gas_data().budget),
-                label: "Gas Budget".to_string(),
-            },
-            amount_v2: SignablePayloadFieldAmountV2 {
-                amount: tx_data.gas_data().budget.to_string(),
-                abbreviation: Some("MIST".to_string()),
-            },
-        });
-
-        // Add gas price
-        fields.push(SignablePayloadField::AmountV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: format!("{} MIST", tx_data.gas_data().price),
-                label: "Gas Price".to_string(),
-            },
-            amount_v2: SignablePayloadFieldAmountV2 {
-                amount: tx_data.gas_data().price.to_string(),
-                abbreviation: Some("MIST".to_string()),
-            },
-        });
-
-        let tx_kind = match &tx_data.transaction() {
-            SuiTransactionBlockKind::ProgrammableTransaction(pt) => {
-                let command_count = pt.commands.len();
-                format!("Programmable Transaction ({} commands)", command_count)
-            }
-            SuiTransactionBlockKind::ChangeEpoch(_) => "Change Epoch".to_string(),
-            SuiTransactionBlockKind::Genesis(_) => "Genesis".to_string(),
-            SuiTransactionBlockKind::ConsensusCommitPrologue(_) => {
-                "Consensus Commit Prologue".to_string()
-            }
-            SuiTransactionBlockKind::AuthenticatorStateUpdate(_) => {
-                "Authenticator State Update".to_string()
-            }
-            SuiTransactionBlockKind::RandomnessStateUpdate(_) => {
-                "Randomness State Update".to_string()
-            }
-            SuiTransactionBlockKind::EndOfEpochTransaction(_) => {
-                "End of Epoch Transaction".to_string()
-            }
-            SuiTransactionBlockKind::ConsensusCommitPrologueV2(_) => {
-                "Consensus Commit Prologue V2".to_string()
-            }
-            SuiTransactionBlockKind::ConsensusCommitPrologueV3(_) => {
-                "Consensus Commit Prologue V3".to_string()
-            }
-            SuiTransactionBlockKind::ConsensusCommitPrologueV4(_) => {
-                "Consensus Commit Prologue V4".to_string()
-            }
-            SuiTransactionBlockKind::ProgrammableSystemTransaction(_) => {
-                "Programmable System Transaction".to_string()
-            }
-        };
-
-        fields.push(SignablePayloadField::TextV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: tx_kind.clone(),
-                label: "Transaction Type".to_string(),
-            },
-            text_v2: SignablePayloadFieldTextV2 { text: tx_kind },
-        });
-
-        let title = match &tx_data.transaction() {
-            SuiTransactionBlockKind::ProgrammableTransaction(_) => "Execute Transaction",
-            SuiTransactionBlockKind::ChangeEpoch(_) => "Change Epoch",
-            SuiTransactionBlockKind::Genesis(_) => "Genesis Transaction",
-            SuiTransactionBlockKind::ConsensusCommitPrologue(_) => "Consensus Commit",
-            SuiTransactionBlockKind::AuthenticatorStateUpdate(_) => "Authenticator State Update",
-            SuiTransactionBlockKind::RandomnessStateUpdate(_) => "Randomness State Update",
-            SuiTransactionBlockKind::EndOfEpochTransaction(_) => "End of Epoch Transaction",
-            SuiTransactionBlockKind::ConsensusCommitPrologueV2(_) => "Consensus Commit Prologue V2",
-            SuiTransactionBlockKind::ConsensusCommitPrologueV3(_) => "Consensus Commit Prologue V3",
-            SuiTransactionBlockKind::ConsensusCommitPrologueV4(_) => "Consensus Commit Prologue V4",
-            SuiTransactionBlockKind::ProgrammableSystemTransaction(_) => {
-                "Programmable System Transaction"
-            }
-        }
-        .to_string();
-        let subtitle = "".to_string();
-        let payload_type = "Sui".to_string();
-
-        Ok(SignablePayload::new(
-            0,
-            title,
-            Some(subtitle),
-            fields,
-            payload_type,
-        ))
+    /// Get a reference to the inner transaction
+    pub fn inner(&self) -> &SuiTransactionBlock {
+        &self.transaction
     }
 }
 
-fn transfer_info_to_vsp(transfer_info: &TransferInfo) -> Vec<SignablePayloadField> {
-    let mut fields: Vec<SignablePayloadField> = Vec::new();
+/// Converter that knows how to format Sui transactions for VisualSign
+pub struct SuiVisualSignConverter;
 
-    fields.push(SignablePayloadField::TextV2 {
-        common: SignablePayloadFieldCommon {
-            fallback_text: transfer_info.token.to_string(),
-            label: "Asset".to_string(),
-        },
-        text_v2: SignablePayloadFieldTextV2 {
-            text: transfer_info.token.to_string(),
-        },
-    });
+impl VisualSignConverter<SuiTransactionWrapper> for SuiVisualSignConverter {
+    fn to_visual_sign_payload(
+        &self,
+        transaction_wrapper: SuiTransactionWrapper,
+        options: VisualSignOptions,
+    ) -> Result<SignablePayload, VisualSignError> {
+        let transaction = transaction_wrapper.inner();
 
-    if let Some(recipient) = &transfer_info.recipient {
-        fields.push(SignablePayloadField::AddressV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: recipient.to_string(),
-                label: "To".to_string(),
-            },
-            address_v2: SignablePayloadFieldAddressV2 {
-                address: recipient.to_string(),
-                name: "".to_string(),
-                memo: None,
-                asset_label: "".to_string(),
-                badge_text: None,
-            },
-        });
+        let payload = convert_to_visual_sign_payload(
+            transaction,
+            options.decode_transfers,
+            options.transaction_name,
+        );
+
+        Ok(payload)
+    }
+}
+
+impl VisualSignConverterFromString<SuiTransactionWrapper> for SuiVisualSignConverter {}
+
+/// Decode a transaction from string format
+pub(crate) fn decode_transaction(
+    raw_transaction: &str,
+    encodings: SupportedEncodings,
+) -> Result<SuiTransactionBlock, Box<dyn std::error::Error>> {
+    if raw_transaction.is_empty() {
+        return Err("Transaction is empty".into());
     }
 
-    if let Some(amount) = &transfer_info.amount {
-        let asset_label = transfer_info.token.get_label();
-        fields.push(SignablePayloadField::AmountV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: format!("{} {}", amount, asset_label),
-                label: "Amount".to_string(),
-            },
-            amount_v2: SignablePayloadFieldAmountV2 {
-                amount: amount.to_string(),
-                abbreviation: Some(asset_label),
-            },
-        });
+    let bytes = match encodings {
+        SupportedEncodings::Base64 => {
+            base64::engine::general_purpose::STANDARD.decode(raw_transaction)?
+        }
+        SupportedEncodings::Hex => hex::decode(raw_transaction)?,
+    };
+
+    Ok(SuiTransactionBlock::try_from(
+        bcs::from_bytes::<SenderSignedData>(&bytes)?,
+        &SyncModuleCache::new(SuiModuleResolver),
+    )?)
+}
+
+/// Convert Sui transaction to visual sign payload
+fn convert_to_visual_sign_payload(
+    transaction: &SuiTransactionBlock,
+    decode_transfers: bool,
+    title: Option<String>,
+) -> SignablePayload {
+    let mut fields = vec![create_simple_text_field("Network", "Sui Network")];
+
+    if decode_transfers {
+        add_transfer_preview_layouts(&mut fields, transaction);
+    }
+
+    add_transaction_details_preview_layout(&mut fields, transaction);
+
+    let title = title.unwrap_or_else(|| determine_transaction_type_string(transaction));
+    SignablePayload::new(0, title, None, fields, "Sui".to_string())
+}
+
+/// Add transfer information using preview layout
+fn add_transfer_preview_layouts(
+    fields: &mut Vec<SignablePayloadField>,
+    transaction: &SuiTransactionBlock,
+) {
+    let detected_transfers = detect_transfer_from_transaction(transaction);
+
+    let transfer_list: Vec<&TransferInfo> = detected_transfers
+        .iter()
+        // TODO: think about error handling
+        .filter_map(|x| x.as_ref().ok())
+        .collect();
+
+    for (index, transfer) in transfer_list.iter().enumerate() {
+        fields.push(create_transfer_preview_layout(transfer, index + 1));
+    }
+}
+
+/// Create a preview layout for a transfer
+fn create_transfer_preview_layout(transfer: &TransferInfo, index: usize) -> SignablePayloadField {
+    let title_text = match &transfer.coin_object {
+        CoinObject::Sui => format!("Transfer {}: {} SUI", index, transfer.amount),
+        CoinObject::Unknown(_) => format!("Transfer {}: {} tokens", index, transfer.amount),
+    };
+
+    let subtitle_text = format!(
+        "From {} to {}",
+        truncate_address(&transfer.sender.to_string()),
+        truncate_address(&transfer.recipient.to_string())
+    );
+
+    // Condensed view - just the transfer summary
+    let condensed = SignablePayloadFieldListLayout {
+        fields: vec![create_text_field(
+            "Summary",
+            &format!(
+                "Transfer {} {} from {} to {}",
+                transfer.amount,
+                transfer.coin_object.get_label(),
+                truncate_address(&transfer.sender.to_string()),
+                truncate_address(&transfer.recipient.to_string())
+            ),
+        )],
+    };
+
+    // Expanded view - detailed breakdown
+    let expanded = SignablePayloadFieldListLayout {
+        fields: create_transfer_expanded_fields(transfer),
+    };
+
+    let preview_layout = SignablePayloadFieldPreviewLayout {
+        title: Some(SignablePayloadFieldTextV2 {
+            text: title_text.clone(),
+        }),
+        subtitle: Some(SignablePayloadFieldTextV2 {
+            text: subtitle_text,
+        }),
+        condensed: Some(condensed),
+        expanded: Some(expanded),
+    };
+
+    SignablePayloadField::PreviewLayout {
+        common: SignablePayloadFieldCommon {
+            fallback_text: title_text.clone(),
+            label: format!("Transfer {}", index),
+        },
+        preview_layout,
+    }
+}
+
+/// Create expanded fields for a transfer
+fn create_transfer_expanded_fields(transfer: &TransferInfo) -> Vec<AnnotatedPayloadField> {
+    let mut fields = Vec::new();
+
+    // TODO: resolve object id
+    fields.push(create_text_field(
+        "Asset Object ID",
+        &transfer.coin_object.to_string(),
+    ));
+
+    fields.push(create_address_field(
+        "From",
+        &transfer.sender.to_string(),
+        None,
+        None,
+        None,
+        None,
+    ));
+
+    fields.push(create_address_field(
+        "To",
+        &transfer.recipient.to_string(),
+        None,
+        None,
+        None,
+        None,
+    ));
+
+    let asset_label = transfer.coin_object.get_label();
+    fields.push(create_amount_field(
+        "Amount",
+        &transfer.amount.to_string(),
+        &asset_label,
+    ));
+
+    fields
+}
+
+/// Add transaction details using preview layout
+fn add_transaction_details_preview_layout(
+    fields: &mut Vec<SignablePayloadField>,
+    transaction: &SuiTransactionBlock,
+) {
+    let tx_data = &transaction.data;
+
+    let title_text = "Transaction Details";
+    let subtitle_text = format!("Gas: {} MIST", tx_data.gas_data().budget);
+
+    let condensed = SignablePayloadFieldListLayout {
+        fields: vec![
+            create_text_field("Type", &determine_transaction_type_string(transaction)),
+            create_text_field("Gas Budget", &format!("{} MIST", tx_data.gas_data().budget)),
+        ],
+    };
+
+    let expanded = SignablePayloadFieldListLayout {
+        fields: create_transaction_expanded_fields(transaction),
+    };
+
+    let preview_layout = SignablePayloadFieldPreviewLayout {
+        title: Some(SignablePayloadFieldTextV2 {
+            text: title_text.to_string(),
+        }),
+        subtitle: Some(SignablePayloadFieldTextV2 {
+            text: subtitle_text,
+        }),
+        condensed: Some(condensed),
+        expanded: Some(expanded),
+    };
+
+    fields.push(SignablePayloadField::PreviewLayout {
+        common: SignablePayloadFieldCommon {
+            fallback_text: "Transaction Details".to_string(),
+            label: "Transaction".to_string(),
+        },
+        preview_layout,
+    });
+}
+
+/// Create expanded fields for transaction details
+fn create_transaction_expanded_fields(
+    transaction: &SuiTransactionBlock,
+) -> Vec<AnnotatedPayloadField> {
+    let mut fields = Vec::new();
+    let tx_data = &transaction.data;
+
+    fields.push(create_text_field(
+        "Transaction Type",
+        &determine_transaction_type_string(transaction),
+    ));
+
+    fields.push(create_address_field(
+        "Gas Owner",
+        &tx_data.gas_data().owner.to_string(),
+        None,
+        None,
+        None,
+        None,
+    ));
+
+    fields.push(create_amount_field(
+        "Gas Budget",
+        &tx_data.gas_data().budget.to_string(),
+        "MIST",
+    ));
+
+    fields.push(create_amount_field(
+        "Gas Price",
+        &tx_data.gas_data().price.to_string(),
+        "MIST",
+    ));
+
+    if let SuiTransactionBlockKind::ProgrammableTransaction(pt) = &tx_data.transaction() {
+        fields.push(create_text_field(
+            "Commands",
+            &pt.commands.len().to_string(),
+        ));
     }
 
     fields
 }
 
-impl VisualSignConverterFromString<SuiTransactionWrapper> for SuiTransactionConverter {}
+/// Determine transaction title based on type
+fn determine_transaction_type_string(transaction: &SuiTransactionBlock) -> String {
+    let tx_data = &transaction.data;
 
-/// Convenience function to convert a base64-encoded Sui transaction to VSP format
-pub fn sui_transaction_to_vsp(
+    match &tx_data.transaction() {
+        SuiTransactionBlockKind::ProgrammableTransaction(_) => "Programmable Transaction",
+        SuiTransactionBlockKind::ChangeEpoch(_) => "Change Epoch",
+        SuiTransactionBlockKind::Genesis(_) => "Genesis Transaction",
+        SuiTransactionBlockKind::ConsensusCommitPrologue(_) => "Consensus Commit",
+        SuiTransactionBlockKind::AuthenticatorStateUpdate(_) => "Authenticator State Update",
+        SuiTransactionBlockKind::RandomnessStateUpdate(_) => "Randomness State Update",
+        SuiTransactionBlockKind::EndOfEpochTransaction(_) => "End of Epoch Transaction",
+        SuiTransactionBlockKind::ConsensusCommitPrologueV2(_) => "Consensus Commit Prologue V2",
+        SuiTransactionBlockKind::ConsensusCommitPrologueV3(_) => "Consensus Commit Prologue V3",
+        SuiTransactionBlockKind::ConsensusCommitPrologueV4(_) => "Consensus Commit Prologue V4",
+        SuiTransactionBlockKind::ProgrammableSystemTransaction(_) => {
+            "Programmable System Transaction"
+        }
+    }
+    .to_string()
+}
+
+/// Truncate address to show first 6 and last 4 characters
+fn truncate_address(address: &str) -> String {
+    if address.len() <= 10 {
+        return address.to_string();
+    }
+
+    format!("{}...{}", &address[..6], &address[address.len() - 4..])
+}
+
+/// Public API function for ease of use
+pub fn transaction_to_visual_sign(
+    transaction: SuiTransactionBlock,
+    options: VisualSignOptions,
+) -> Result<SignablePayload, VisualSignError> {
+    SuiVisualSignConverter.to_visual_sign_payload(SuiTransactionWrapper::new(transaction), options)
+}
+
+/// Public API function for string-based transactions
+pub fn transaction_string_to_visual_sign(
     transaction_data: &str,
     options: VisualSignOptions,
-) -> anyhow::Result<SignablePayload, VisualSignError> {
-    let converter = SuiTransactionConverter;
-    converter.to_visual_sign_payload_from_string(transaction_data, options)
+) -> Result<SignablePayload, VisualSignError> {
+    SuiVisualSignConverter.to_visual_sign_payload_from_string(transaction_data, options)
 }
 
 #[cfg(test)]
@@ -256,15 +363,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_parse_empty_transaction() {
+        let result = decode_transaction("", SupportedEncodings::Base64);
+
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().to_string(), "Transaction is empty");
+    }
+
+    #[test]
+    fn test_parse_basic_transaction_info() {
+        let test_data = "AQAAAAAAAgAI6AMAAAAAAAAAIKHjrlUcKr48a86iLT8ZNWpkcIbWvVasDQnk7u0GKQt2AgIAAQEAAAEBAgAAAQEA1ukuAC4mw6+yCIABwbWCC2TyvDUb/aWiNCrL+fXBysIBy0he+AoLr5B5piHELIsMtlzpmG4cgf0W7ogDjwBKWu3zD9AUAAAAACB0zCGEALsfD5u98y58qbKGIiXkCtDxxN2Pu+r/HyOy1tbpLgAuJsOvsgiAAcG1ggtk8rw1G/2lojQqy/n1wcrC6AMAAAAAAABAS0wAAAAAAAABYQBMegviWYFsLskcYMnTIhZRxiZkET3j2RqtgG1g7f1/EuPjfCHfTvgDqVys+AA6jLWojR35eW4HoOh8qURdshkADNDs6YjOg+HDmdMLe0zMuMDJKqzwIYg08CT6mXiLc2Y=";
+        let result = decode_transaction(test_data, SupportedEncodings::Base64);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_sui_transaction_to_vsp() {
         let test_data = "AQAAAAAAAgAI6AMAAAAAAAAAIKHjrlUcKr48a86iLT8ZNWpkcIbWvVasDQnk7u0GKQt2AgIAAQEAAAEBAgAAAQEA1ukuAC4mw6+yCIABwbWCC2TyvDUb/aWiNCrL+fXBysIBy0he+AoLr5B5piHELIsMtlzpmG4cgf0W7ogDjwBKWu3zD9AUAAAAACB0zCGEALsfD5u98y58qbKGIiXkCtDxxN2Pu+r/HyOy1tbpLgAuJsOvsgiAAcG1ggtk8rw1G/2lojQqy/n1wcrC6AMAAAAAAABAS0wAAAAAAAABYQBMegviWYFsLskcYMnTIhZRxiZkET3j2RqtgG1g7f1/EuPjfCHfTvgDqVys+AA6jLWojR35eW4HoOh8qURdshkADNDs6YjOg+HDmdMLe0zMuMDJKqzwIYg08CT6mXiLc2Y=";
         let options = VisualSignOptions::default();
 
-        let result = sui_transaction_to_vsp(test_data, options);
+        let result = transaction_string_to_visual_sign(test_data, options);
         assert!(result.is_ok());
 
         let payload = result.unwrap();
-        assert_eq!(payload.title, "Execute Transaction");
+        assert_eq!(payload.title, "Programmable Transaction");
         assert_eq!(payload.version, "0");
         assert_eq!(payload.payload_type, "Sui");
 
@@ -273,24 +396,8 @@ mod tests {
         let network_field = payload.fields.iter().find(|f| f.label() == "Network");
         assert!(network_field.is_some());
 
-        let from_field = payload.fields.iter().find(|f| f.label() == "From");
-        assert!(from_field.is_some());
-
-        let gas_budget_field = payload.fields.iter().find(|f| f.label() == "Gas Budget");
-        assert!(gas_budget_field.is_some());
-
-        let gas_price_field = payload.fields.iter().find(|f| f.label() == "Gas Price");
-        assert!(gas_price_field.is_some());
-
-        let tx_type_field = payload
-            .fields
-            .iter()
-            .find(|f| f.label() == "Transaction Type");
-        assert!(tx_type_field.is_some());
-
         let json_result = payload.to_json();
         assert!(json_result.is_ok());
-        println!("VSP JSON: {}", json_result.unwrap());
     }
 
     #[test]
@@ -302,10 +409,50 @@ mod tests {
 
         let sui_tx = result.unwrap();
         assert_eq!(sui_tx.transaction_type(), "Sui");
-        assert_eq!(sui_tx.raw_data, test_data);
 
-        // Test with invalid data
         let invalid_result = SuiTransactionWrapper::from_string("invalid_data");
         assert!(invalid_result.is_err());
+    }
+
+    #[test]
+    fn test_truncate_address() {
+        let address = "0x1234567890abcdef1234567890abcdef12345678";
+        let truncated = truncate_address(address);
+        assert_eq!(truncated, "0x1234...5678");
+
+        let short_address = "0x12345";
+        let truncated_short = truncate_address(short_address);
+        assert_eq!(truncated_short, "0x12345");
+    }
+
+    #[test]
+    fn test_preview_layout_structure() {
+        let test_data = "AQAAAAAAAgAI6AMAAAAAAAAAIKHjrlUcKr48a86iLT8ZNWpkcIbWvVasDQnk7u0GKQt2AgIAAQEAAAEBAgAAAQEA1ukuAC4mw6+yCIABwbWCC2TyvDUb/aWiNCrL+fXBysIBy0he+AoLr5B5piHELIsMtlzpmG4cgf0W7ogDjwBKWu3zD9AUAAAAACB0zCGEALsfD5u98y58qbKGIiXkCtDxxN2Pu+r/HyOy1tbpLgAuJsOvsgiAAcG1ggtk8rw1G/2lojQqy/n1wcrC6AMAAAAAAABAS0wAAAAAAAABYQBMegviWYFsLskcYMnTIhZRxiZkET3j2RqtgG1g7f1/EuPjfCHfTvgDqVys+AA6jLWojR35eW4HoOh8qURdshkADNDs6YjOg+HDmdMLe0zMuMDJKqzwIYg08CT6mXiLc2Y=";
+        let options = VisualSignOptions {
+            decode_transfers: true,
+            transaction_name: None,
+        };
+
+        let result = transaction_string_to_visual_sign(test_data, options);
+        assert!(result.is_ok());
+
+        let payload = result.unwrap();
+
+        let preview_fields: Vec<_> = payload
+            .fields
+            .iter()
+            .filter(|f| f.field_type() == "preview_layout")
+            .collect();
+
+        assert!(
+            !preview_fields.is_empty(),
+            "Should have preview layout fields"
+        );
+
+        let transaction_preview = payload.fields.iter().find(|f| f.label() == "Transaction");
+        assert!(
+            transaction_preview.is_some(),
+            "Should have transaction preview layout"
+        );
     }
 }

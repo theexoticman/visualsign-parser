@@ -19,7 +19,7 @@ fn create_registry() -> visualsign::registry::TransactionConverterRegistry {
     );
     registry.register::<visualsign_sui::SuiTransactionWrapper, _>(
         visualsign::registry::Chain::Sui,
-        visualsign_sui::SuiTransactionConverter,
+        visualsign_sui::SuiVisualSignConverter,
     );
     registry.register::<visualsign_unspecified::UnspecifiedTransactionWrapper, _>(
         visualsign::registry::Chain::Unspecified,
