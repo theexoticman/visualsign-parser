@@ -208,40 +208,24 @@ fn create_transfer_preview_layout(transfer: &TransferInfo, index: usize) -> Sign
 
 /// Create expanded fields for a transfer
 fn create_transfer_expanded_fields(transfer: &TransferInfo) -> Vec<AnnotatedPayloadField> {
-    let mut fields = Vec::new();
-
-    // TODO: resolve object id
-    fields.push(create_text_field(
-        "Asset Object ID",
-        &transfer.coin_object.to_string(),
-    ));
-
-    fields.push(create_address_field(
-        "From",
-        &transfer.sender.to_string(),
-        None,
-        None,
-        None,
-        None,
-    ));
-
-    fields.push(create_address_field(
-        "To",
-        &transfer.recipient.to_string(),
-        None,
-        None,
-        None,
-        None,
-    ));
-
-    let asset_label = transfer.coin_object.get_label();
-    fields.push(create_amount_field(
-        "Amount",
-        &transfer.amount.to_string(),
-        &asset_label,
-    ));
-
-    fields
+    vec![
+        // TODO: resolve object id
+        create_text_field("Asset Object ID", &transfer.coin_object.to_string()),
+        create_address_field("From", &transfer.sender.to_string(), None, None, None, None),
+        create_address_field(
+            "To",
+            &transfer.recipient.to_string(),
+            None,
+            None,
+            None,
+            None,
+        ),
+        create_amount_field(
+            "Amount",
+            &transfer.amount.to_string(),
+            &transfer.coin_object.get_label(),
+        ),
+    ]
 }
 
 /// Add transaction details using preview layout
