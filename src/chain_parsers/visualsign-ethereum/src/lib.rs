@@ -1,5 +1,5 @@
 use alloy_consensus::{Transaction as _, TypedTransaction};
-use alloy_primitives::U256;
+use alloy_primitives::{U256, utils::format_units};
 use alloy_rlp::Decodable;
 use base64::{Engine as _, engine::general_purpose::STANDARD as b64};
 use visualsign::{
@@ -13,37 +13,7 @@ use visualsign::{
 
 // Helper function to format wei to ether
 fn format_ether(wei: U256) -> String {
-    let eth_in_wei = U256::from(1_000_000_000_000_000_000u64); // 10^18
-    let eth_part = wei / eth_in_wei;
-    let wei_part = wei % eth_in_wei;
-
-    if wei_part == U256::ZERO {
-        format!("{}", eth_part)
-    } else {
-        // Convert to decimal representation
-        let decimal_str = format!("{:018}", wei_part);
-        let trimmed = decimal_str.trim_end_matches('0');
-        if trimmed.is_empty() {
-            format!("{}", eth_part)
-        } else {
-            format!("{}.{}", eth_part, trimmed)
-        }
-    }
-}
-
-// Helper function to format wei to gwei
-fn format_gwei(wei: U256) -> String {
-    let gwei_in_wei = U256::from(1_000_000_000u64); // 10^9
-    let gwei_part = wei / gwei_in_wei;
-    let remainder = wei % gwei_in_wei;
-
-    if remainder == U256::ZERO {
-        format!("{}", gwei_part)
-    } else {
-        let decimal_str = format!("{:09}", remainder);
-        let trimmed = decimal_str.trim_end_matches('0');
-        format!("{}.{}", gwei_part, trimmed)
-    }
+    format_units(wei, 18).unwrap_or_else(|_| wei.to_string())
 }
 
 /// Wrapper around Alloy's transaction type that implements the Transaction trait
@@ -126,9 +96,10 @@ fn decode_transaction(
     match bytes[0] {
         0x01 => {
             // EIP-2930: Optional access lists
-            let tx = alloy_consensus::TxEip2930::decode(&mut &bytes[1..])
-                .map_err(|e| format!("Failed to decode EIP-2930 transaction: {}", e))?;
-            Ok(TypedTransaction::Eip2930(tx))
+            // let tx = alloy_consensus::TxEip2930::decode(&mut &bytes[1..])
+            //      .map_err(|e| format!("Failed to decode EIP-2930 transaction: {}", e))?;
+            // Ok(TypedTransaction::Eip2930(tx))
+            Err("Unsupported variant eip-2930".into())
         }
         0x02 => {
             // EIP-1559: Fee market change
@@ -138,17 +109,19 @@ fn decode_transaction(
         }
         0x03 => {
             // EIP-4844: Blob transactions
-            let tx = alloy_consensus::TxEip4844::decode(&mut &bytes[1..])
-                .map_err(|e| format!("Failed to decode EIP-4844 transaction: {}", e))?;
-            Ok(TypedTransaction::Eip4844(
-                alloy_consensus::TxEip4844Variant::TxEip4844(tx),
-            ))
+            // let tx = alloy_consensus::TxEip4844::decode(&mut &bytes[1..])
+            //    .map_err(|e| format!("Failed to decode EIP-4844 transaction: {}", e))?;
+            // Ok(TypedTransaction::Eip4844(
+            //      alloy_consensus::TxEip4844Variant::TxEip4844(tx),
+            // ))
+            Err("Unsupported variant eip-4844".into())
         }
         0x04 => {
             // EIP-7702: Set EOA account code
-            let tx = alloy_consensus::TxEip7702::decode(&mut &bytes[1..])
-                .map_err(|e| format!("Failed to decode EIP-7702 transaction: {}", e))?;
-            Ok(TypedTransaction::Eip7702(tx))
+            //let tx = alloy_consensus::TxEip7702::decode(&mut &bytes[1..])
+            //    .map_err(|e| format!("Failed to decode EIP-7702 transaction: {}", e))?;
+            //Ok(TypedTransaction::Eip7702(tx))
+            Err("Unsupported variant eip-7702".into())
         }
         _ => Err(format!("Unknown transaction type: 0x{:02x}", bytes[0]).into()),
     }
@@ -201,27 +174,27 @@ fn convert_to_visual_sign_payload(
     // Add gas price field (handling different transaction types)
     let gas_price_text = match &transaction {
         TypedTransaction::Legacy(tx) => {
-            format!("{} gwei", format_gwei(U256::from(tx.gas_price)))
+            format!("{} ETH", format_ether(U256::from(tx.gas_price)))
         }
         TypedTransaction::Eip2930(tx) => {
-            format!("{} gwei", format_gwei(U256::from(tx.gas_price)))
+            format!("{} ETH", format_ether(U256::from(tx.gas_price)))
         }
         TypedTransaction::Eip1559(tx) => {
-            format!("{} gwei", format_gwei(U256::from(tx.max_fee_per_gas)))
+            format!("{} ETH", format_ether(U256::from(tx.max_fee_per_gas)))
         }
         TypedTransaction::Eip4844(tx) => match tx {
             alloy_consensus::TxEip4844Variant::TxEip4844(inner_tx) => {
-                format!("{} gwei", format_gwei(U256::from(inner_tx.max_fee_per_gas)))
+                format!("{} ETH", format_ether(U256::from(inner_tx.max_fee_per_gas)))
             }
             alloy_consensus::TxEip4844Variant::TxEip4844WithSidecar(sidecar_tx) => {
                 format!(
-                    "{} gwei",
-                    format_gwei(U256::from(sidecar_tx.tx.max_fee_per_gas))
+                    "{} ETH",
+                    format_ether(U256::from(sidecar_tx.tx.max_fee_per_gas))
                 )
             }
         },
         TypedTransaction::Eip7702(tx) => {
-            format!("{} gwei", format_gwei(U256::from(tx.max_fee_per_gas)))
+            format!("{} ETH", format_ether(U256::from(tx.max_fee_per_gas)))
         }
     };
 
