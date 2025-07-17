@@ -10,8 +10,8 @@ use sui_types::base_types::SuiAddress;
 use sui_json_rpc_types::SuiArgument::Input;
 use sui_json_rpc_types::SuiCommand::{SplitCoins, TransferObjects};
 use sui_json_rpc_types::{
-    SuiArgument, SuiProgrammableTransactionBlock, SuiTransactionBlock, SuiTransactionBlockDataAPI,
-    SuiTransactionBlockKind,
+    SuiArgument, SuiProgrammableTransactionBlock, SuiTransactionBlockData,
+    SuiTransactionBlockDataAPI, SuiTransactionBlockKind,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -65,10 +65,8 @@ impl SplitCoinResult {
 }
 
 pub fn detect_transfer_from_transaction(
-    tx_block: &SuiTransactionBlock,
+    tx_data: &SuiTransactionBlockData,
 ) -> Vec<Result<TransferInfo, String>> {
-    let tx_data = &tx_block.data;
-
     let SuiTransactionBlockKind::ProgrammableTransaction(transaction) = &tx_data.transaction()
     else {
         return vec![];

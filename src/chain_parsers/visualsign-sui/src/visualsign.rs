@@ -9,9 +9,9 @@ use base64::Engine;
 use move_bytecode_utils::module_cache::SyncModuleCache;
 
 use sui_json_rpc_types::{
-    SuiTransactionBlock, SuiTransactionBlockDataAPI, SuiTransactionBlockKind,
+    SuiTransactionBlockData, SuiTransactionBlockDataAPI, SuiTransactionBlockKind,
 };
-use sui_types::transaction::SenderSignedData;
+use sui_types::transaction::{SenderSignedData, TransactionData};
 
 use visualsign::{
     AnnotatedPayloadField, SignablePayload, SignablePayloadField, SignablePayloadFieldCommon,
@@ -26,7 +26,7 @@ use visualsign::{
 /// Wrapper around Sui's transaction type that implements the Transaction trait
 #[derive(Debug, Clone)]
 pub struct SuiTransactionWrapper {
-    transaction: SuiTransactionBlock,
+    transaction: SuiTransactionBlockData,
 }
 
 impl Transaction for SuiTransactionWrapper {
@@ -46,12 +46,12 @@ impl Transaction for SuiTransactionWrapper {
 
 impl SuiTransactionWrapper {
     /// Create a new SuiTransactionWrapper
-    pub fn new(transaction: SuiTransactionBlock) -> Self {
+    pub fn new(transaction: SuiTransactionBlockData) -> Self {
         Self { transaction }
     }
 
     /// Get a reference to the inner transaction
-    pub fn inner(&self) -> &SuiTransactionBlock {
+    pub fn inner(&self) -> &SuiTransactionBlockData {
         &self.transaction
     }
 }
@@ -83,7 +83,7 @@ impl VisualSignConverterFromString<SuiTransactionWrapper> for SuiVisualSignConve
 pub(crate) fn decode_transaction(
     raw_transaction: &str,
     encodings: SupportedEncodings,
-) -> Result<SuiTransactionBlock, Box<dyn std::error::Error>> {
+) -> Result<SuiTransactionBlockData, Box<dyn std::error::Error>> {
     if raw_transaction.is_empty() {
         return Err("Transaction is empty".into());
     }
@@ -95,15 +95,26 @@ pub(crate) fn decode_transaction(
         SupportedEncodings::Hex => hex::decode(raw_transaction)?,
     };
 
-    Ok(SuiTransactionBlock::try_from(
-        bcs::from_bytes::<SenderSignedData>(&bytes)?,
-        &SyncModuleCache::new(SuiModuleResolver),
-    )?)
+    if let Ok(sender_signed_data) = bcs::from_bytes::<SenderSignedData>(&bytes) {
+        return Ok(SuiTransactionBlockData::try_from_with_module_cache(
+            sender_signed_data.transaction_data().clone(),
+            &SyncModuleCache::new(SuiModuleResolver),
+        )?);
+    }
+
+    if let Ok(transaction_data) = bcs::from_bytes::<TransactionData>(&bytes) {
+        return Ok(SuiTransactionBlockData::try_from_with_module_cache(
+            transaction_data,
+            &SyncModuleCache::new(SuiModuleResolver),
+        )?);
+    }
+
+    Err("Unable to decode transaction data as either SenderSignedData or TransactionData".into())
 }
 
 /// Convert Sui transaction to visual sign payload
 fn convert_to_visual_sign_payload(
-    transaction: &SuiTransactionBlock,
+    transaction: &SuiTransactionBlockData,
     decode_transfers: bool,
     title: Option<String>,
 ) -> SignablePayload {
@@ -122,7 +133,7 @@ fn convert_to_visual_sign_payload(
 /// Add transfer information using preview layout
 fn add_transfer_preview_layouts(
     fields: &mut Vec<SignablePayloadField>,
-    transaction: &SuiTransactionBlock,
+    transaction: &SuiTransactionBlockData,
 ) {
     let detected_transfers = detect_transfer_from_transaction(transaction);
 
@@ -230,22 +241,20 @@ fn create_transfer_expanded_fields(transfer: &TransferInfo) -> Vec<AnnotatedPayl
 /// Add transaction details using preview layout
 fn add_transaction_details_preview_layout(
     fields: &mut Vec<SignablePayloadField>,
-    transaction: &SuiTransactionBlock,
+    tx_data: &SuiTransactionBlockData,
 ) {
-    let tx_data = &transaction.data;
-
     let title_text = "Transaction Details";
     let subtitle_text = format!("Gas: {} MIST", tx_data.gas_data().budget);
 
     let condensed = SignablePayloadFieldListLayout {
         fields: vec![
-            create_text_field("Type", &determine_transaction_type_string(transaction)),
+            create_text_field("Type", &determine_transaction_type_string(tx_data)),
             create_text_field("Gas Budget", &format!("{} MIST", tx_data.gas_data().budget)),
         ],
     };
 
     let expanded = SignablePayloadFieldListLayout {
-        fields: create_transaction_expanded_fields(transaction),
+        fields: create_transaction_expanded_fields(tx_data),
     };
 
     let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -270,36 +279,24 @@ fn add_transaction_details_preview_layout(
 
 /// Create expanded fields for transaction details
 fn create_transaction_expanded_fields(
-    transaction: &SuiTransactionBlock,
+    tx_data: &SuiTransactionBlockData,
 ) -> Vec<AnnotatedPayloadField> {
-    let mut fields = Vec::new();
-    let tx_data = &transaction.data;
-
-    fields.push(create_text_field(
-        "Transaction Type",
-        &determine_transaction_type_string(transaction),
-    ));
-
-    fields.push(create_address_field(
-        "Gas Owner",
-        &tx_data.gas_data().owner.to_string(),
-        None,
-        None,
-        None,
-        None,
-    ));
-
-    fields.push(create_amount_field(
-        "Gas Budget",
-        &tx_data.gas_data().budget.to_string(),
-        "MIST",
-    ));
-
-    fields.push(create_amount_field(
-        "Gas Price",
-        &tx_data.gas_data().price.to_string(),
-        "MIST",
-    ));
+    let mut fields = vec![
+        create_text_field(
+            "Transaction Type",
+            &determine_transaction_type_string(tx_data),
+        ),
+        create_address_field(
+            "Gas Owner",
+            &tx_data.gas_data().owner.to_string(),
+            None,
+            None,
+            None,
+            None,
+        ),
+        create_amount_field("Gas Budget", &tx_data.gas_data().budget.to_string(), "MIST"),
+        create_amount_field("Gas Price", &tx_data.gas_data().price.to_string(), "MIST"),
+    ];
 
     if let SuiTransactionBlockKind::ProgrammableTransaction(pt) = &tx_data.transaction() {
         fields.push(create_text_field(
@@ -312,9 +309,7 @@ fn create_transaction_expanded_fields(
 }
 
 /// Determine transaction title based on type
-fn determine_transaction_type_string(transaction: &SuiTransactionBlock) -> String {
-    let tx_data = &transaction.data;
-
+fn determine_transaction_type_string(tx_data: &SuiTransactionBlockData) -> String {
     match &tx_data.transaction() {
         SuiTransactionBlockKind::ProgrammableTransaction(_) => "Programmable Transaction",
         SuiTransactionBlockKind::ChangeEpoch(_) => "Change Epoch",
@@ -344,7 +339,7 @@ fn truncate_address(address: &str) -> String {
 
 /// Public API function for ease of use
 pub fn transaction_to_visual_sign(
-    transaction: SuiTransactionBlock,
+    transaction: SuiTransactionBlockData,
     options: VisualSignOptions,
 ) -> Result<SignablePayload, VisualSignError> {
     SuiVisualSignConverter.to_visual_sign_payload(SuiTransactionWrapper::new(transaction), options)
@@ -368,6 +363,16 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().to_string(), "Transaction is empty");
+    }
+
+    #[test]
+    fn test_parse_native_transfer() {
+        let result = decode_transaction(
+            "AAACACCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJCrze8SNFZ4kAAIAMqaOwAAAAACAgABAQEAAQECAAABAADW6S4ALibDr7IIgAHBtYILZPK8NRv9paI0Ksv59cHKwgHLSF74CguvkHmmIcQsiwy2XOmYbhyB/RbuiAOPAEpa7Rua1BcAAAAAIGOAX4LpV/FYmnpiNGs3y1rsDwwf9O10x5SdK7vXP+9Q1ukuAC4mw6+yCIABwbWCC2TyvDUb/aWiNCrL+fXBysLoAwAAAAAAAEBLTAAAAAAAAA==",
+            SupportedEncodings::Base64,
+        );
+
+        assert!(result.is_ok());
     }
 
     #[test]

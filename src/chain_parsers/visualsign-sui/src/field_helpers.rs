@@ -1,7 +1,6 @@
 use visualsign::{
     AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldAddressV2,
-    SignablePayloadFieldAmountV2, SignablePayloadFieldCommon,
-    SignablePayloadFieldTextV2,
+    SignablePayloadFieldAmountV2, SignablePayloadFieldCommon, SignablePayloadFieldTextV2,
 };
 
 /// Helper function to create a text field
