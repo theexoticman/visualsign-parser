@@ -138,18 +138,16 @@ fn convert_to_visual_sign_payload(
 ) -> SignablePayload {
     // Extract chain ID to determine the network
     let chain_id = match &transaction {
-        TypedTransaction::Legacy(tx) => tx.chain_id.map(|id| id as u64),
-        TypedTransaction::Eip2930(tx) => Some(tx.chain_id as u64),
-        TypedTransaction::Eip1559(tx) => Some(tx.chain_id as u64),
+        TypedTransaction::Legacy(tx) => tx.chain_id,
+        TypedTransaction::Eip2930(tx) => Some(tx.chain_id),
+        TypedTransaction::Eip1559(tx) => Some(tx.chain_id),
         TypedTransaction::Eip4844(tx) => match tx {
-            alloy_consensus::TxEip4844Variant::TxEip4844(inner_tx) => {
-                Some(inner_tx.chain_id as u64)
-            }
+            alloy_consensus::TxEip4844Variant::TxEip4844(inner_tx) => Some(inner_tx.chain_id),
             alloy_consensus::TxEip4844Variant::TxEip4844WithSidecar(sidecar_tx) => {
-                Some(sidecar_tx.tx.chain_id as u64)
+                Some(sidecar_tx.tx.chain_id)
             }
         },
-        TypedTransaction::Eip7702(tx) => Some(tx.chain_id as u64),
+        TypedTransaction::Eip7702(tx) => Some(tx.chain_id),
     };
 
     let chain_name = chains::get_chain_name(chain_id);
