@@ -1,9 +1,6 @@
 use std::collections::HashMap;
-use std::fmt::Display;
 
-use move_core_types::runtime_value::MoveValue;
-
-use sui_json::{MoveTypeLayout, SuiJsonValue};
+use crate::commands::utils::{get_amount, get_index, parse_numeric_argument, CoinObject};
 
 use sui_types::base_types::SuiAddress;
 
@@ -14,29 +11,6 @@ use sui_json_rpc_types::{
     SuiTransactionBlockDataAPI, SuiTransactionBlockKind,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum CoinObject {
-    Sui,
-    Unknown(String),
-}
-
-impl Display for CoinObject {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CoinObject::Sui => write!(f, "Sui"),
-            CoinObject::Unknown(s) => write!(f, "Object ID: {}", s),
-        }
-    }
-}
-
-impl CoinObject {
-    pub fn get_label(&self) -> String {
-        match self {
-            CoinObject::Sui => "Sui".to_string(),
-            CoinObject::Unknown(_) => "Unknown".to_string(),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct TransferInfo {
@@ -44,12 +18,6 @@ pub struct TransferInfo {
     pub recipient: SuiAddress,
     pub amount: u64,
     pub coin_object: CoinObject,
-}
-
-impl Default for CoinObject {
-    fn default() -> CoinObject {
-        CoinObject::Unknown(String::default())
-    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -164,21 +132,6 @@ fn get_token(transaction: &SuiProgrammableTransactionBlock, arg: &SuiArgument) -
     }
 }
 
-fn get_amount(
-    transaction: &SuiProgrammableTransactionBlock,
-    sui_args: &[SuiArgument],
-) -> Option<u64> {
-    let sui_value = transaction.inputs.get(get_index(sui_args)? as usize)?;
-
-    let Ok(MoveValue::U64(decoded_value)) =
-        SuiJsonValue::to_move_value(&sui_value.pure()?.to_json_value(), &MoveTypeLayout::U64)
-    else {
-        return None;
-    };
-
-    Some(decoded_value)
-}
-
 fn get_recipient(
     transaction: &SuiProgrammableTransactionBlock,
     arg: &SuiArgument,
@@ -187,22 +140,6 @@ fn get_recipient(
         .inputs
         .get(parse_numeric_argument(arg)? as usize)?;
     sui_value.pure()?.to_sui_address().ok()
-}
-
-fn get_index(sui_args: &[SuiArgument]) -> Option<u16> {
-    if sui_args.len() != 1 {
-        return None;
-    }
-
-    parse_numeric_argument(sui_args.first()?)
-}
-
-fn parse_numeric_argument(arg: &SuiArgument) -> Option<u16> {
-    match arg {
-        Input(index) => Some(*index),
-        SuiArgument::Result(index) => Some(*index),
-        _ => None,
-    }
 }
 
 #[cfg(test)]
