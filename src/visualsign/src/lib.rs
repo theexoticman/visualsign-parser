@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 pub mod encodings;
-pub mod registry;
 pub mod field_builders;
+pub mod registry;
 pub mod vsptrait;
 
 // A function to check if a string is empty (used for skip_serializing_if)
