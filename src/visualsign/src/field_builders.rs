@@ -2,6 +2,7 @@ use crate::{
     AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldAmountV2,
     SignablePayloadFieldCommon, SignablePayloadFieldNumber, SignablePayloadFieldTextV2,
 };
+use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
 
 pub fn create_text_field(label: &str, text: &str) -> AnnotatedPayloadField {
     AnnotatedPayloadField {
@@ -67,7 +68,7 @@ pub fn create_raw_data_field(data: &[u8]) -> AnnotatedPayloadField {
                 label: "Raw Data".to_string(),
             },
             text_v2: SignablePayloadFieldTextV2 {
-                text: base64::engine::general_purpose::STANDARD.encode(data),
+                text: b64.encode(data),
             },
         },
         static_annotation: None,
