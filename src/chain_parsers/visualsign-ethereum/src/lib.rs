@@ -227,7 +227,7 @@ fn convert_to_visual_sign_payload(
             },
             address: SignablePayloadFieldAddress {
                 address: to.to_string(),
-                name: to.to_string(),
+                name: "To".to_string(),
             },
         });
     }
