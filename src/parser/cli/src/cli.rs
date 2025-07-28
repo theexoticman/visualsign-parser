@@ -4,17 +4,31 @@ use clap::{Arg, Command};
 use parser_app::registry::create_registry;
 use visualsign::vsptrait::VisualSignOptions;
 
-fn parse_and_display(chain: &str, raw_tx: &str, options: VisualSignOptions) {
+fn parse_and_display(chain: &str, raw_tx: &str, options: VisualSignOptions, output_format: &str) {
     let registry_chain = parse_chain(chain);
 
     let registry = create_registry();
     let signable_payload_str = registry.convert_transaction(&registry_chain, raw_tx, options);
-
-    println!("Visual Signing Properties:");
-    println!("========================");
-    println!("Chain: {chain}");
-    println!("Transaction: {raw_tx}");
-    println!("Properties: {signable_payload_str:#?}");
+    match signable_payload_str {
+        Ok(payload) => match output_format {
+            "json" => {
+                if let Ok(json_output) = serde_json::to_string_pretty(&payload) {
+                    println!("{json_output}");
+                } else {
+                    eprintln!("Error: Failed to serialize output as JSON");
+                }
+            }
+            "text" => {
+                println!("{payload:#?}");
+            }
+            _ => {
+                eprintln!("Error: Unsupported output format '{output_format}'");
+            }
+        },
+        Err(err) => {
+            eprintln!("Error: {err:?}");
+        }
+    }
 }
 
 /// app cli
@@ -49,6 +63,15 @@ impl Cli {
                     .help("Raw transaction hex string")
                     .required(true),
             )
+            .arg(
+                Arg::new("output")
+                    .short('o')
+                    .long("output")
+                    .value_name("FORMAT")
+                    .help("Output format")
+                    .value_parser(["text", "json"])
+                    .default_value("text"),
+            )
             .get_matches();
 
         let chain = matches
@@ -57,12 +80,15 @@ impl Cli {
         let raw_tx = matches
             .get_one::<String>("transaction")
             .expect("Transaction is required");
+        let output_format = matches
+            .get_one::<String>("output")
+            .expect("Output format has default value");
 
         let options = VisualSignOptions {
             decode_transfers: true,
             transaction_name: None,
         };
 
-        parse_and_display(chain, raw_tx, options);
+        parse_and_display(chain, raw_tx, options, output_format);
     }
 }
