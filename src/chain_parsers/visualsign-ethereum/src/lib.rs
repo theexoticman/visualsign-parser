@@ -3,7 +3,8 @@ use alloy_consensus::{Transaction as _, TxType, TypedTransaction};
 use alloy_rlp::{Buf, Decodable};
 use base64::{Engine as _, engine::general_purpose::STANDARD as b64};
 use visualsign::{
-    SignablePayload, SignablePayloadField, SignablePayloadFieldCommon, SignablePayloadFieldTextV2,
+    SignablePayload, SignablePayloadField, SignablePayloadFieldAddress,
+    SignablePayloadFieldAmountV2, SignablePayloadFieldCommon, SignablePayloadFieldTextV2,
     encodings::SupportedEncodings,
     vsptrait::{
         Transaction, TransactionParseError, VisualSignConverter, VisualSignConverterFromString,
@@ -219,24 +220,26 @@ fn convert_to_visual_sign_payload(
         text_v2: SignablePayloadFieldTextV2 { text: chain_name },
     }];
     if let Some(to) = transaction.to() {
-        fields.push(SignablePayloadField::TextV2 {
+        fields.push(SignablePayloadField::Address {
             common: SignablePayloadFieldCommon {
                 fallback_text: to.to_string(),
                 label: "To".to_string(),
             },
-            text_v2: SignablePayloadFieldTextV2 {
-                text: to.to_string(),
+            address: SignablePayloadFieldAddress {
+                address: to.to_string(),
+                name: to.to_string(),
             },
         });
     }
     fields.extend([
-        SignablePayloadField::TextV2 {
+        SignablePayloadField::AmountV2 {
             common: SignablePayloadFieldCommon {
                 fallback_text: format!("{} ETH", format_ether(transaction.value())),
                 label: "Value".to_string(),
             },
-            text_v2: SignablePayloadFieldTextV2 {
-                text: format!("{} ETH", format_ether(transaction.value())),
+            amount_v2: SignablePayloadFieldAmountV2 {
+                amount: format_ether(transaction.value()),
+                abbreviation: Some("ETH".to_string()),
             },
         },
         SignablePayloadField::TextV2 {
