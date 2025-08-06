@@ -7,7 +7,10 @@ use ::visualsign::SignablePayloadField;
 use sui_json_rpc_types::{SuiCallArg, SuiCommand};
 use sui_types::base_types::SuiAddress;
 
-pub use visualsign::{SuiTransactionWrapper, SuiVisualSignConverter};
+pub use visualsign::{
+    SuiTransactionWrapper, SuiVisualSignConverter, transaction_string_to_visual_sign,
+    transaction_to_visual_sign,
+};
 
 /// Context for visualizing a Sui transaction command.
 ///

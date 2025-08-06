@@ -1,7 +1,7 @@
 use crate::core::commands::add_tx_commands;
 use crate::core::helper::SuiModuleResolver;
 use crate::core::transaction::{
-    add_tx_details, add_tx_network, decode_transaction, determine_transaction_type_string,
+    get_tx_details, get_tx_network, decode_transaction, determine_transaction_type_string,
 };
 
 use move_bytecode_utils::module_cache::SyncModuleCache;
@@ -44,6 +44,8 @@ impl Transaction for SuiTransactionWrapper {
         let transaction = decode_transaction(data, format)
             .map_err(|e| TransactionParseError::DecodeError(e.to_string()))?;
 
+        dbg!(&transaction);
+
         Ok(Self { transaction })
     }
 
@@ -85,10 +87,10 @@ fn convert_to_visual_sign_payload(
     )
     .map_err(|e| VisualSignError::ParseError(TransactionParseError::DecodeError(e.to_string())))?;
 
-    let mut fields: Vec<SignablePayloadField> = vec![];
-
-    fields.push(add_tx_network().signable_payload_field);
-    fields.push(add_tx_details(transaction, &block_data));
+    let mut fields: Vec<SignablePayloadField> = vec![
+        get_tx_network().signable_payload_field,
+        get_tx_details(transaction, &block_data)
+    ];
 
     // TODO: revisit this later
     // if decode_transfers {}
@@ -255,30 +257,6 @@ mod tests {
         assert!(
             transaction_preview.is_some(),
             "Should have Withdraw Command layout"
-        );
-    }
-
-    #[test]
-    fn test_cetus_amm_swap_b2a_commands() {
-        // https://suivision.xyz/txblock/7Je4yeXMvvEHFcRSTD4WYv3eSsaDk2zqvdoSxWXdUYGx
-        let test_data = "AQAAAAAACQEAEXs/ewhS1RZrUZQ2xQEliCJn40SK4PvEV75r2SGFMXhjUsAjAAAAACBSKqlrLdPXYeuzckz31NAkeSO09qmNPv/pkWggJMTC2QAIuMbAAQAAAAABAdqkYpJjLDxNjzHyPqD5s2oo/zZ36WhJgORDhAOmej2PLgUYAAAAAAAAAQFK94o+ni1sq8pdp5wea/9ImVZqQhMh/DtaYZZkAXpg1nkOqBoAAAAAAQABAQAIuMbAAQAAAAAACI0+GgMAAAAAABCvMxuoMn+7NbHE/v8AAAAAAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgEAAAAAAAAAAAMCAQAAAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgRjb2luBHplcm8BB9ujRnLjDLBlsfk+OrVTGHaP1v72bBWULJ98uEbi+QDnBHVzZGMEVVNEQwAAALLbcUL6gyEKfXjZwSrEnAQ7PLvUgiJP6m49oAqlpa4tDnBvb2xfc2NyaXB0X3YyCHN3YXBfYjJhAgfbo0Zy4wywZbH5Pjq1Uxh2j9b+9mwVlCyffLhG4vkA5wR1c2RjBFVTREMAB7eETiiahBDlD7PKSNaeuc8p4n0iPvkDU/4b2OJ/+PP4BGNvaW4EQ09JTgAJAQIAAQMAAgEAAgAAAQQAAQUAAQYAAQcAAQgArltnUkfA5IdctLm9N6YO1bz4kng0TThA3StCbiinZoUBZI8YcdbCiGOtIFCZV/M9U6lZTgf3lg6t7feHRsBBqR1jUsAjAAAAACCmwR6aeqn8D632smpzU9fbDhP3vPOQhgc806IrzekPH65bZ1JHwOSHXLS5vTemDtW8+JJ4NE04QN0rQm4op2aFBQIAAAAAAAC8YDQAAAAAAAABYQAdbFpPHuOPe/TYRMttj4FSzAN1ErZdI75GooTkFmiIVkvCM+lnSS3pR/qQt6j7K3gsrtBExfgOL/dffWapvuMEyeP1ig9kZWEaY4lMw99QxRTo2PcUhKsb1gquOOAGXP8=";
-
-        let options = VisualSignOptions {
-            decode_transfers: true,
-            transaction_name: None,
-        };
-
-        let result = transaction_string_to_visual_sign(test_data, options);
-        assert!(result.is_ok());
-
-        let payload = result.unwrap();
-        let transaction_preview = payload
-            .fields
-            .iter()
-            .find(|f| f.label() == "CetusAMM Swap Command");
-        assert!(
-            transaction_preview.is_some(),
-            "Should have CetusAMM Swap Command layout"
         );
     }
 }

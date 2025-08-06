@@ -10,11 +10,11 @@ use visualsign::{
     field_builders::{create_amount_field, create_raw_data_field, create_text_field},
 };
 
-pub fn add_tx_network() -> AnnotatedPayloadField {
+pub fn get_tx_network() -> AnnotatedPayloadField {
     create_text_field("Network", "Sui Network")
 }
 
-pub fn add_tx_details(
+pub fn get_tx_details(
     tx_data: &TransactionData,
     block_data: &SuiTransactionBlockData,
 ) -> SignablePayloadField {

@@ -8,6 +8,8 @@ anyhow = "1.0"
 base64 = "0.22.1"
 hex = "0.4.3"
 
+num-traits = "0.2.19"
+
 bcs = "0.1.6"
 
 move-core-types = { git = "https://github.com/MystenLabs/sui", tag = "mainnet-v1.52.2", package = "move-core-types" }

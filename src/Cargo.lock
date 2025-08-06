@@ -10823,6 +10823,7 @@ dependencies = [
  "hex",
  "move-bytecode-utils",
  "move-core-types",
+ "num-traits",
  "sui-json",
  "sui-json-rpc-types",
  "sui-types",
