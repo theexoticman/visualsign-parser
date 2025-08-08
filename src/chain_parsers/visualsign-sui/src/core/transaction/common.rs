@@ -1,12 +1,13 @@
 use super::determine_transaction_type_string;
-use crate::utils::{create_address_field, truncate_address};
+
+use crate::utils::create_address_field;
 
 use sui_json_rpc_types::{SuiTransactionBlockData, SuiTransactionBlockDataAPI};
 use sui_types::transaction::TransactionData;
 
 use visualsign::{
     AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldCommon,
-    SignablePayloadFieldListLayout,
+    SignablePayloadFieldListLayout, SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
     field_builders::{create_amount_field, create_raw_data_field, create_text_field},
 };
 
@@ -24,14 +25,43 @@ pub fn get_tx_details(
         .chain(create_tx_data_fields(tx_data))
         .collect();
 
-    SignablePayloadField::ListLayout {
-        common: SignablePayloadFieldCommon {
-            fallback_text: "Transaction Details".to_string(),
-            label: "Transaction Details".to_string(),
-        },
-        list_layout: SignablePayloadFieldListLayout {
+    {
+        let title_text = "Transaction Details".to_string();
+        let subtitle_text = format!("Gas: {} MIST", block_data.gas_data().budget);
+
+        let condensed = SignablePayloadFieldListLayout {
+            fields: vec![
+                create_tx_type_fields(block_data),
+                create_amount_field(
+                    "Gas Budget",
+                    &block_data.gas_data().budget.to_string(),
+                    "MIST",
+                ),
+            ],
+        };
+
+        let expanded = SignablePayloadFieldListLayout {
             fields: payload_fields,
-        },
+        };
+
+        let preview_layout = SignablePayloadFieldPreviewLayout {
+            title: Some(SignablePayloadFieldTextV2 {
+                text: title_text.clone(),
+            }),
+            subtitle: Some(SignablePayloadFieldTextV2 {
+                text: subtitle_text,
+            }),
+            condensed: Some(condensed),
+            expanded: Some(expanded),
+        };
+
+        SignablePayloadField::PreviewLayout {
+            common: SignablePayloadFieldCommon {
+                fallback_text: title_text,
+                label: "Transaction Details".to_string(),
+            },
+            preview_layout,
+        }
     }
 }
 
@@ -46,7 +76,7 @@ fn create_tx_gas_fields(block_data: &SuiTransactionBlockData) -> Vec<AnnotatedPa
     vec![
         create_address_field(
             "Gas Owner",
-            &truncate_address(&block_data.gas_data().owner.to_string()),
+            &block_data.gas_data().owner.to_string(),
             None,
             None,
             None,

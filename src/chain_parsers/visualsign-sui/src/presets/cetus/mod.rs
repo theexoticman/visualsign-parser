@@ -3,12 +3,13 @@ mod config;
 use config::{CETUS_CONFIG, PoolScriptV2Functions, SwapB2AIndexes};
 
 use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext};
-use crate::utils::{SuiCoin, create_address_field, get_tx_type_arg};
+use crate::utils::{SuiCoin, create_address_field, get_tx_type_arg, truncate_address};
 
 use sui_json_rpc_types::{SuiCommand, SuiProgrammableMoveCall};
 
 use visualsign::{
     SignablePayloadField, SignablePayloadFieldCommon, SignablePayloadFieldListLayout,
+    SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
     field_builders::{create_amount_field, create_text_field},
 };
 
@@ -42,8 +43,8 @@ impl CetusVisualizer {
         context: &VisualizerContext,
         pwc: &SuiProgrammableMoveCall,
     ) -> SignablePayloadField {
-        let input_coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
-        let output_coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
+        let input_coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
+        let output_coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
 
         let input_amount = SwapB2AIndexes::get_input_amount(context.inputs(), &pwc.arguments);
         let min_output_amount =
@@ -68,7 +69,7 @@ impl CetusVisualizer {
             None => create_text_field("Input Amount", "N/A"),
         });
 
-        list_layout_fields.push(create_text_field("Input Coin", input_coin.symbol()));
+        list_layout_fields.push(create_text_field("Input Coin", &input_coin.to_string()));
 
         list_layout_fields.push(match min_output_amount {
             Some(amount) => create_amount_field(
@@ -79,16 +80,56 @@ impl CetusVisualizer {
             None => create_text_field("Min Output Amount", "N/A"),
         });
 
-        list_layout_fields.push(create_text_field("Output Coin", output_coin.symbol()));
+        list_layout_fields.push(create_text_field("Output Coin", &output_coin.to_string()));
 
-        SignablePayloadField::ListLayout {
-            common: SignablePayloadFieldCommon {
-                fallback_text: "CetusAMM Swap Command".to_string(),
-                label: "CetusAMM Swap Command".to_string(),
-            },
-            list_layout: SignablePayloadFieldListLayout {
+        {
+            let title_text = match input_amount {
+                Some(amount) => format!(
+                    "CetusAMM Swap: {} {} → {}",
+                    amount,
+                    input_coin.symbol(),
+                    output_coin.symbol()
+                ),
+                None => format!(
+                    "CetusAMM Swap: {} → {}",
+                    input_coin.symbol(),
+                    output_coin.symbol()
+                ),
+            };
+            let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
+
+            let condensed = SignablePayloadFieldListLayout {
+                fields: vec![create_text_field(
+                    "Summary",
+                    &format!(
+                        "Swap {} to {} (min out: {})",
+                        input_coin.symbol(),
+                        output_coin.symbol(),
+                        min_output_amount
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| "N/A".to_string())
+                    ),
+                )],
+            };
+
+            let expanded = SignablePayloadFieldListLayout {
                 fields: list_layout_fields,
-            },
+            };
+
+            SignablePayloadField::PreviewLayout {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: title_text.clone(),
+                    label: "CetusAMM Swap Command".to_string(),
+                },
+                preview_layout: SignablePayloadFieldPreviewLayout {
+                    title: Some(SignablePayloadFieldTextV2 { text: title_text }),
+                    subtitle: Some(SignablePayloadFieldTextV2 {
+                        text: subtitle_text,
+                    }),
+                    condensed: Some(condensed),
+                    expanded: Some(expanded),
+                },
+            }
         }
     }
 }

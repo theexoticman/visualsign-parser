@@ -53,7 +53,6 @@ impl Default for SuiCoin {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CoinObject {
-    #[allow(dead_code)]
     Sui,
     Unknown(String),
 }
@@ -70,7 +69,7 @@ impl std::fmt::Display for CoinObject {
 impl CoinObject {
     pub fn get_label(&self) -> String {
         match self {
-            CoinObject::Sui => "Sui".to_string(),
+            CoinObject::Sui => "MIST".to_string(),
             CoinObject::Unknown(_) => "Unknown".to_string(),
         }
     }

@@ -3,6 +3,7 @@ mod config;
 
 use visualsign::{
     SignablePayloadField, SignablePayloadFieldCommon, SignablePayloadFieldListLayout,
+    SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
     field_builders::{create_amount_field, create_text_field},
 };
 
@@ -11,7 +12,7 @@ use crate::presets::suilend::config::{LendingMarketFunction, SUILEND_CONFIG};
 
 use crate::utils::{
     SuiCoin, SuiPackage, create_address_field, decode_number, get_index, get_nested_result_value,
-    get_tx_type_arg,
+    get_tx_type_arg, truncate_address,
 };
 
 pub struct SuilendVisualizer;
@@ -37,12 +38,19 @@ impl CommandVisualizer for SuilendVisualizer {
                 let amount = get_repay_amount(context.commands(), context.inputs(), &pwc.arguments)
                     .unwrap_or_default();
 
-                Some(SignablePayloadField::ListLayout {
-                    common: SignablePayloadFieldCommon {
-                        fallback_text: "Suilend Repay Command".to_string(),
-                        label: "Suilend Repay Command".to_string(),
-                    },
-                    list_layout: SignablePayloadFieldListLayout {
+                {
+                    let title_text = format!("Suilend: Repay {} {}", amount, coin.symbol());
+                    let subtitle_text =
+                        format!("From {}", truncate_address(&context.sender().to_string()));
+
+                    let condensed = SignablePayloadFieldListLayout {
+                        fields: vec![create_text_field(
+                            "Summary",
+                            &format!("Repay {} {} via {}", amount, coin.symbol(), package),
+                        )],
+                    };
+
+                    let expanded = SignablePayloadFieldListLayout {
                         fields: vec![
                             create_address_field(
                                 "From",
@@ -56,20 +64,51 @@ impl CommandVisualizer for SuilendVisualizer {
                             create_text_field("Coin", &coin.to_string()),
                             create_amount_field("Repay Amount", &amount.to_string(), coin.symbol()),
                         ],
-                    },
-                })
+                    };
+
+                    let preview_layout = SignablePayloadFieldPreviewLayout {
+                        title: Some(SignablePayloadFieldTextV2 {
+                            text: title_text.clone(),
+                        }),
+                        subtitle: Some(SignablePayloadFieldTextV2 {
+                            text: subtitle_text,
+                        }),
+                        condensed: Some(condensed),
+                        expanded: Some(expanded),
+                    };
+
+                    Some(SignablePayloadField::PreviewLayout {
+                        common: SignablePayloadFieldCommon {
+                            fallback_text: title_text,
+                            label: "Suilend Repay Command".to_string(),
+                        },
+                        preview_layout,
+                    })
+                }
             }
             LendingMarketFunction::ClaimRewardsAndDeposit => {
                 let coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
                 let package: SuiPackage =
                     get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
 
-                Some(SignablePayloadField::ListLayout {
-                    common: SignablePayloadFieldCommon {
-                        fallback_text: "Suilend Claim Rewards and Deposit Command".to_string(),
-                        label: "Suilend Claim Rewards and Deposit Command".to_string(),
-                    },
-                    list_layout: SignablePayloadFieldListLayout {
+                {
+                    let title_text =
+                        format!("Suilend: Claim Rewards and Deposit ({})", coin.symbol());
+                    let subtitle_text =
+                        format!("From {}", truncate_address(&context.sender().to_string()));
+
+                    let condensed = SignablePayloadFieldListLayout {
+                        fields: vec![create_text_field(
+                            "Summary",
+                            &format!(
+                                "Claim rewards and deposit {} via {}",
+                                coin.symbol(),
+                                package
+                            ),
+                        )],
+                    };
+
+                    let expanded = SignablePayloadFieldListLayout {
                         fields: vec![
                             create_address_field(
                                 "From",
@@ -82,8 +121,27 @@ impl CommandVisualizer for SuilendVisualizer {
                             create_text_field("Package", &package.to_string()),
                             create_text_field("Coin", &coin.to_string()),
                         ],
-                    },
-                })
+                    };
+
+                    let preview_layout = SignablePayloadFieldPreviewLayout {
+                        title: Some(SignablePayloadFieldTextV2 {
+                            text: title_text.clone(),
+                        }),
+                        subtitle: Some(SignablePayloadFieldTextV2 {
+                            text: subtitle_text,
+                        }),
+                        condensed: Some(condensed),
+                        expanded: Some(expanded),
+                    };
+
+                    Some(SignablePayloadField::PreviewLayout {
+                        common: SignablePayloadFieldCommon {
+                            fallback_text: title_text,
+                            label: "Suilend Claim Rewards and Deposit Command".to_string(),
+                        },
+                        preview_layout,
+                    })
+                }
             }
         }
     }

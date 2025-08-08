@@ -88,7 +88,6 @@ fn convert_to_visual_sign_payload(
 
     let mut fields: Vec<SignablePayloadField> = vec![
         get_tx_network().signable_payload_field,
-        get_tx_details(transaction, &block_data),
     ];
 
     if decode_transfers {
@@ -96,6 +95,8 @@ fn convert_to_visual_sign_payload(
     }
 
     fields.extend(decode_commands(&block_data));
+
+    fields.push(get_tx_details(transaction, &block_data));
 
     let title = title.unwrap_or_else(|| determine_transaction_type_string(&block_data));
     Ok(SignablePayload::new(

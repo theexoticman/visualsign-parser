@@ -1,5 +1,7 @@
 use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext};
-use crate::utils::{CoinObject, create_address_field, get_index, parse_numeric_argument};
+use crate::utils::{
+    CoinObject, create_address_field, get_index, parse_numeric_argument, truncate_address,
+};
 
 use move_core_types::runtime_value::MoveValue;
 
@@ -7,8 +9,10 @@ use sui_json::{MoveTypeLayout, SuiJsonValue};
 use sui_json_rpc_types::{SuiArgument, SuiCallArg, SuiCommand};
 use sui_types::base_types::SuiAddress;
 
+use sui_types::gas_coin::MIST_PER_SUI;
 use visualsign::{
     SignablePayloadField, SignablePayloadFieldCommon, SignablePayloadFieldListLayout,
+    SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
     field_builders::{create_amount_field, create_text_field},
 };
 
@@ -27,25 +31,62 @@ impl CommandVisualizer for CoinTransferVisualizer {
             get_coin_amount(context.commands(), context.inputs(), args).unwrap_or_default();
         let receiver = get_receiver(context.inputs(), arg).unwrap_or_default();
 
-        Some(SignablePayloadField::ListLayout {
+        let title_text = if amount > 0 {
+            match &coin {
+                CoinObject::Sui => format!("Transfer: {} MIST ({} SUI)", amount, amount / MIST_PER_SUI),
+                CoinObject::Unknown(id) => format!("Transfer: {} {}", amount, id),
+            }
+        } else {
+            "Transfer Command".to_string()
+        };
+
+        let subtitle_text = format!(
+            "From {} to {}",
+            truncate_address(&context.sender().to_string()),
+            truncate_address(&receiver.to_string())
+        );
+
+        let condensed = SignablePayloadFieldListLayout {
+            fields: vec![create_text_field(
+                "Summary",
+                &format!(
+                    "Transfer {} {} from {} to {}",
+                    amount,
+                    coin.get_label(),
+                    truncate_address(&context.sender().to_string()),
+                    truncate_address(&receiver.to_string())
+                ),
+            )],
+        };
+
+        let expanded = SignablePayloadFieldListLayout {
+            fields: vec![
+                create_text_field("Asset Object ID", &coin.to_string()),
+                create_address_field(
+                    "From",
+                    &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                ),
+                create_address_field("To", &receiver.to_string(), None, None, None, None),
+                create_amount_field("Amount", &amount.to_string(), &coin.get_label()),
+            ],
+        };
+
+        Some(SignablePayloadField::PreviewLayout {
             common: SignablePayloadFieldCommon {
-                fallback_text: "Transfer Command".to_string(),
+                fallback_text: title_text.clone(),
                 label: "Transfer Command".to_string(),
             },
-            list_layout: SignablePayloadFieldListLayout {
-                fields: vec![
-                    create_text_field("Asset Object ID", &coin.to_string()),
-                    create_address_field(
-                        "From",
-                        &context.sender().to_string(),
-                        None,
-                        None,
-                        None,
-                        None,
-                    ),
-                    create_address_field("To", &receiver.to_string(), None, None, None, None),
-                    create_amount_field("Amount", &amount.to_string(), &coin.get_label()),
-                ],
+            preview_layout: SignablePayloadFieldPreviewLayout {
+                title: Some(SignablePayloadFieldTextV2 { text: title_text }),
+                subtitle: Some(SignablePayloadFieldTextV2 {
+                    text: subtitle_text,
+                }),
+                condensed: Some(condensed),
+                expanded: Some(expanded),
             },
         })
     }
@@ -78,10 +119,13 @@ fn get_coin(
     let result_command = commands.get(result_index)?;
 
     match result_command {
-        SuiCommand::SplitCoins(input_coin_arg, _) => {
-            let coin_arg = inputs.get(parse_numeric_argument(input_coin_arg)? as usize)?;
-            coin_arg.object().map(|id| CoinObject::Unknown(id.to_hex()))
-        }
+        SuiCommand::SplitCoins(input_coin_arg, _) => match input_coin_arg {
+            SuiArgument::GasCoin => Some(CoinObject::Sui),
+            _ => {
+                let coin_arg = inputs.get(parse_numeric_argument(input_coin_arg)? as usize)?;
+                coin_arg.object().map(|id| CoinObject::Unknown(id.to_hex()))
+            }
+        },
         _ => None,
     }
 }

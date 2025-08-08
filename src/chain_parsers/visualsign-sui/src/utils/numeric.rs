@@ -13,21 +13,20 @@ pub fn decode_bool(call_arg: &SuiCallArg) -> Option<bool> {
     }
 }
 
-// TODO: think about u256
+// TODO: think about u256 and fallback options 
 pub fn decode_number<T>(call_arg: &SuiCallArg) -> Option<T>
 where
     T: FromLeBytes,
 {
-    let pure_value = call_arg.pure()?;
+    T::from_le_bytes(&json_array_to_bytes(&call_arg.pure()?.to_json_value())?)
+}
 
-    match align_of::<T>() {
-        1 => T::from_le_bytes(&pure_value.to_bcs_bytes(&MoveTypeLayout::U8).ok()?),
-        2 => T::from_le_bytes(&pure_value.to_bcs_bytes(&MoveTypeLayout::U16).ok()?),
-        4 => T::from_le_bytes(&pure_value.to_bcs_bytes(&MoveTypeLayout::U32).ok()?),
-        8 => T::from_le_bytes(&pure_value.to_bcs_bytes(&MoveTypeLayout::U64).ok()?),
-        16 => T::from_le_bytes(&pure_value.to_bcs_bytes(&MoveTypeLayout::U128).ok()?),
-        _ => None,
-    }
+fn json_array_to_bytes(value: &serde_json::Value) -> Option<Vec<u8>> {
+    value.as_array().map(|arr| {
+        arr.iter()
+            .filter_map(|v| v.as_u64().map(|n| n as u8))
+            .collect()
+    })
 }
 
 pub trait FromLeBytes: Sized {
