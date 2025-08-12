@@ -14,6 +14,22 @@ pub use visualsign::{
     transaction_to_visual_sign,
 };
 
+/// Identifier for which visualizer handled a command, categorized by dApp type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VisualizerKind {
+    /// Decentralized exchange protocols (e.g., AMMs, DEX aggregators)
+    Dex(&'static str),
+    /// Lending/borrowing protocols
+    Lending(&'static str),
+    /// Validator or pooled staking without liquid derivative tokens
+    StakingPools(&'static str),
+    /// Payment and simple transfer-related operations
+    Payments(&'static str),
+    #[allow(dead_code)]
+    /// Fallback/uncategorized
+    Unknown(&'static str),
+}
+
 pub struct SuiIntegrationConfigData {
     pub packages: HashMap<&'static str, HashMap<&'static str, Vec<&'static str>>>,
 }
@@ -99,6 +115,9 @@ pub trait CommandVisualizer {
     /// Returns the config for the visualizer.
     fn get_config(&self) -> Option<&dyn SuiIntegrationConfig>;
 
+    /// The identifier of this visualizer.
+    fn kind(&self) -> VisualizerKind;
+
     /// Checks if this visualizer can handle the given command.
     fn can_handle(&self, context: &VisualizerContext) -> bool {
         let Some(config) = self.get_config() else {
@@ -114,6 +133,14 @@ pub trait CommandVisualizer {
     }
 }
 
+/// Result of a successful visualization attempt, including which visualizer handled it.
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct VisualizeResult {
+    pub field: SignablePayloadField,
+    pub kind: VisualizerKind,
+}
+
 /// Tries multiple visualizers in order, returning the first successful visualization.
 ///
 /// # Arguments
@@ -121,14 +148,21 @@ pub trait CommandVisualizer {
 /// * `context` - The visualization context.
 ///
 /// # Returns
-/// * `Some(SignablePayloadField)` if any visualizer can handle the command.
+/// * `Some(VisualizeResult)` if any visualizer can handle the command, including which one.
 /// * `None` if none can handle it.
 pub fn visualize_with_any(
     visualizers: &[&dyn CommandVisualizer],
     context: &VisualizerContext,
-) -> Option<SignablePayloadField> {
-    visualizers
-        .iter()
-        .find(|v| v.can_handle(context))
-        .and_then(|v| v.visualize_tx_commands(context))
+) -> Option<VisualizeResult> {
+    visualizers.iter().find_map(|v| {
+        if v.can_handle(context) {
+            v.visualize_tx_commands(context)
+                .map(|field| VisualizeResult {
+                    field,
+                    kind: v.kind(),
+                })
+        } else {
+            None
+        }
+    })
 }

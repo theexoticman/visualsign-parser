@@ -2,7 +2,7 @@ mod config;
 
 use config::{CETUS_CONFIG, PoolScriptV2Functions, SwapB2AIndexes};
 
-use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext};
+use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext, VisualizerKind};
 use crate::utils::{SuiCoin, create_address_field, get_tx_type_arg, truncate_address};
 
 use sui_json_rpc_types::{SuiCommand, SuiProgrammableMoveCall};
@@ -34,6 +34,10 @@ impl CommandVisualizer for CetusVisualizer {
 
     fn get_config(&self) -> Option<&dyn SuiIntegrationConfig> {
         Some(&*CETUS_CONFIG)
+    }
+
+    fn kind(&self) -> VisualizerKind {
+        VisualizerKind::Dex("Cetus")
     }
 }
 
@@ -136,8 +140,7 @@ impl CetusVisualizer {
 
 #[cfg(test)]
 mod tests {
-    use crate::transaction_string_to_visual_sign;
-    use visualsign::vsptrait::VisualSignOptions;
+    use crate::test_utils::{assert_has_field, payload_from_b64};
 
     const CETUS_SWAP_LABEL: &str = "CetusAMM Swap Command";
 
@@ -146,19 +149,7 @@ mod tests {
         // https://suivision.xyz/txblock/7Je4yeXMvvEHFcRSTD4WYv3eSsaDk2zqvdoSxWXdUYGx
         let test_data = "AQAAAAAACQEAEXs/ewhS1RZrUZQ2xQEliCJn40SK4PvEV75r2SGFMXhjUsAjAAAAACBSKqlrLdPXYeuzckz31NAkeSO09qmNPv/pkWggJMTC2QAIuMbAAQAAAAABAdqkYpJjLDxNjzHyPqD5s2oo/zZ36WhJgORDhAOmej2PLgUYAAAAAAAAAQFK94o+ni1sq8pdp5wea/9ImVZqQhMh/DtaYZZkAXpg1nkOqBoAAAAAAQABAQAIuMbAAQAAAAAACI0+GgMAAAAAABCvMxuoMn+7NbHE/v8AAAAAAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgEAAAAAAAAAAAMCAQAAAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgRjb2luBHplcm8BB9ujRnLjDLBlsfk+OrVTGHaP1v72bBWULJ98uEbi+QDnBHVzZGMEVVNEQwAAALLbcUL6gyEKfXjZwSrEnAQ7PLvUgiJP6m49oAqlpa4tDnBvb2xfc2NyaXB0X3YyCHN3YXBfYjJhAgfbo0Zy4wywZbH5Pjq1Uxh2j9b+9mwVlCyffLhG4vkA5wR1c2RjBFVTREMAB7eETiiahBDlD7PKSNaeuc8p4n0iPvkDU/4b2OJ/+PP4BGNvaW4EQ09JTgAJAQIAAQMAAgEAAgAAAQQAAQUAAQYAAQcAAQgArltnUkfA5IdctLm9N6YO1bz4kng0TThA3StCbiinZoUBZI8YcdbCiGOtIFCZV/M9U6lZTgf3lg6t7feHRsBBqR1jUsAjAAAAACCmwR6aeqn8D632smpzU9fbDhP3vPOQhgc806IrzekPH65bZ1JHwOSHXLS5vTemDtW8+JJ4NE04QN0rQm4op2aFBQIAAAAAAAC8YDQAAAAAAAABYQAdbFpPHuOPe/TYRMttj4FSzAN1ErZdI75GooTkFmiIVkvCM+lnSS3pR/qQt6j7K3gsrtBExfgOL/dffWapvuMEyeP1ig9kZWEaY4lMw99QxRTo2PcUhKsb1gquOOAGXP8=";
 
-        let payload = transaction_string_to_visual_sign(
-            test_data,
-            VisualSignOptions {
-                decode_transfers: true,
-                transaction_name: None,
-            },
-        )
-        .expect("Failed to visualize tx commands");
-
-        let _ = payload
-            .fields
-            .iter()
-            .find(|f| f.label() == CETUS_SWAP_LABEL)
-            .expect("Should have a CetusAMM Swap Command field");
+        let payload = payload_from_b64(test_data);
+        assert_has_field(&payload, CETUS_SWAP_LABEL);
     }
 }

@@ -127,16 +127,12 @@ pub fn transaction_string_to_visual_sign(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::payload_from_b64;
 
     #[test]
     fn test_sui_transaction_to_vsp() {
         let test_data = "AQAAAAAAAgAI6AMAAAAAAAAAIKHjrlUcKr48a86iLT8ZNWpkcIbWvVasDQnk7u0GKQt2AgIAAQEAAAEBAgAAAQEA1ukuAC4mw6+yCIABwbWCC2TyvDUb/aWiNCrL+fXBysIBy0he+AoLr5B5piHELIsMtlzpmG4cgf0W7ogDjwBKWu3zD9AUAAAAACB0zCGEALsfD5u98y58qbKGIiXkCtDxxN2Pu+r/HyOy1tbpLgAuJsOvsgiAAcG1ggtk8rw1G/2lojQqy/n1wcrC6AMAAAAAAABAS0wAAAAAAAABYQBMegviWYFsLskcYMnTIhZRxiZkET3j2RqtgG1g7f1/EuPjfCHfTvgDqVys+AA6jLWojR35eW4HoOh8qURdshkADNDs6YjOg+HDmdMLe0zMuMDJKqzwIYg08CT6mXiLc2Y=";
-        let options = VisualSignOptions::default();
-
-        let result = transaction_string_to_visual_sign(test_data, options);
-        assert!(result.is_ok());
-
-        let payload: SignablePayload = result.unwrap();
+        let payload: SignablePayload = payload_from_b64(test_data);
         assert_eq!(payload.title, "Programmable Transaction");
         assert_eq!(payload.version, "0");
         assert_eq!(payload.payload_type, "Sui");
@@ -169,15 +165,7 @@ mod tests {
         // https://suivision.xyz/txblock/4D74Jw1sA6ftnLU5JwTVmkrshtSJ5srBeaBXoHwwqXun
         let test_data = "AQAAAAAAAwEAiH3AfwMd9LgjR4Cpv4q9ohzJH5IGeEULdceikU993ywe1bUjAAAAACBk6AzdkhBsxlD09qOl5EZAO3xcqW6YGk3I/huiKDl/JwAIsAMAAAAAAAAAIIfCtnxql1/lDJTgzlHRhoM4PhhvgsnOzBYXB2t5uPgHAgIBAAABAQEAAQECAAABAgCqoKWfAWNCech3JFGHAe31KyrhICC2Xnk32BB6CBv3iQEvqmE5BRF5+VxSGYJp3pmHy08B5Ha1j1QhOjzCugXiaB7VtSMAAAAAIL6nYe4HoYtMDfV/DHDI9cQFEojqzSSrgcY1CFS4X53NqqClnwFjQnnIdyRRhwHt9Ssq4SAgtl55N9gQeggb94kmAgAAAAAAAIg9NAAAAAAAAAFhALw7iSOLS7LpZVsR0DZ4g3N/CCfB7O3YBtJ9fmxMOhBW9r+8Qzg5enH6KpIaq8PR/+sID/qeo+rvDpxB3jXdlgtUydWB+lIRciOIfNf/w8FzDBGL/PRFz4UbH7gWBqeEZA==";
 
-        let options = VisualSignOptions {
-            decode_transfers: true,
-            transaction_name: None,
-        };
-
-        let result = transaction_string_to_visual_sign(test_data, options);
-        assert!(result.is_ok());
-
-        let payload = result.unwrap();
+        let payload = payload_from_b64(test_data);
         let transaction_preview = payload
             .fields
             .iter()

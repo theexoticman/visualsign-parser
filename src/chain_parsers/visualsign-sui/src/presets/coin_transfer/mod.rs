@@ -1,4 +1,4 @@
-use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext};
+use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext, VisualizerKind};
 use crate::utils::{
     CoinObject, create_address_field, get_index, parse_numeric_argument, truncate_address,
 };
@@ -97,6 +97,10 @@ impl CommandVisualizer for CoinTransferVisualizer {
         None
     }
 
+    fn kind(&self) -> VisualizerKind {
+        VisualizerKind::Payments("Native Transfer")
+    }
+
     fn can_handle(&self, context: &VisualizerContext) -> bool {
         if let Some(command) = context.commands().get(context.command_index()) {
             matches!(command, SuiCommand::TransferObjects(_, _))
@@ -157,27 +161,14 @@ fn get_coin_amount(
 
 #[cfg(test)]
 mod tests {
-    use crate::transaction_string_to_visual_sign;
-    use visualsign::vsptrait::VisualSignOptions;
+    use crate::test_utils::{assert_has_field, payload_from_b64};
 
     #[test]
     fn test_transfer_commands() {
         // https://suivision.xyz/txblock/CE46w3GYgWnZU8HF4P149m6ANGebD22xuNqA64v7JykJ
         let test_data = "AQAAAAAABQEAm9cmP35lHGKppWJLgoYU7aexd43oTT2ci4QzxDXFNv92CAsjAAAAACANp0teIzSyzZ4Pj5dL3YaYBdeVmiWScWL/9RCV4mUINwEAARQFJheK7qwbpqmQudEhsSyQ6AjVawfLpN4XRBhe12FH6TIiAAAAACDXzuT2xanZ36QNQSYtDhZn31zfzIlhRk5H6pTsqGdRDAEAXpykdGz3KJdaAVjyAMZQxufRYJfqzNXfOu8jVCAjEjIzfYIhAAAAACA5hk9rACYb1i5fqrUBJIgXhdUFOqOaouNWmQINCW4/WQAIAPLhNQAAAAAAIEutPmqkZpN81fwdos/haXZAQJoZsX8SvKilyMRxrv/pAwMBAAACAQEAAQIAAgEAAAEBAwABAQIBAAEEAA4x8k3bZAV+p192pmk9h7U2nGDwuTmW8EY6c95JyFHCAaCnde0j6aiVXUd/1gCf3q5Uuj1mPVIuuEpJn1teueghdggLIwAAAAAgNhuP2zGpc0qF3gRzxQC5B0lpAZR7xyssXC3gKbH8uxwOMfJN22QFfqdfdqZpPYe1Npxg8Lk5lvBGOnPeSchRwugDAAAAAAAAoIVIAAAAAAAAAWEAFrlPuI8JOSzIoIBc0xwfWia7T5uPf1PS+aSSphoTTq0lRpNuTOg8eOggpBxpLsQDrbAx3jDoWg1R8hZKR62LBex1R808U6AgiY8V7LxOVsChXFf8nSAEGaeSLQc7mJbx";
 
-        let payload = transaction_string_to_visual_sign(
-            test_data,
-            VisualSignOptions {
-                decode_transfers: true,
-                transaction_name: None,
-            },
-        )
-        .expect("Failed to visualize tx commands");
-
-        let _ = payload
-            .fields
-            .iter()
-            .find(|f| f.label() == "Transfer Command")
-            .expect("Should have a Transfer Command field");
+        let payload = payload_from_b64(test_data);
+        assert_has_field(&payload, "Transfer Command");
     }
 }
