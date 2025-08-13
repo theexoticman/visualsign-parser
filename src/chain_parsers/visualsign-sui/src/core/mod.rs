@@ -25,9 +25,6 @@ pub enum VisualizerKind {
     StakingPools(&'static str),
     /// Payment and simple transfer-related operations
     Payments(&'static str),
-    #[allow(dead_code)]
-    /// Fallback/uncategorized
-    Unknown(&'static str),
 }
 
 pub struct SuiIntegrationConfigData {
@@ -134,7 +131,6 @@ pub trait CommandVisualizer {
 }
 
 /// Result of a successful visualization attempt, including which visualizer handled it.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct VisualizeResult {
     pub field: SignablePayloadField,

@@ -2,17 +2,6 @@ use std::convert::TryInto;
 
 use sui_json_rpc_types::SuiCallArg;
 
-use move_core_types::annotated_value::MoveTypeLayout;
-
-#[allow(dead_code)]
-pub fn decode_bool(call_arg: &SuiCallArg) -> Option<bool> {
-    match call_arg.pure()?.to_bcs_bytes(&MoveTypeLayout::Bool).ok()?[0] {
-        0 => Some(false),
-        1 => Some(true),
-        _ => None,
-    }
-}
-
 // TODO: think about u256 and fallback options
 pub fn decode_number<T>(call_arg: &SuiCallArg) -> Option<T>
 where

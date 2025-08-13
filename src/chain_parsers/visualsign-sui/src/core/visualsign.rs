@@ -27,7 +27,6 @@ pub struct SuiTransactionWrapper {
 
 impl SuiTransactionWrapper {
     /// Create a new SuiTransactionWrapper
-    #[allow(dead_code)]
     pub fn new(transaction: TransactionData) -> Self {
         Self { transaction }
     }
@@ -107,7 +106,6 @@ fn convert_to_visual_sign_payload(
 }
 
 /// Public API function for ease of use
-#[allow(dead_code)]
 pub fn transaction_to_visual_sign(
     transaction: TransactionData,
     options: VisualSignOptions,
@@ -116,7 +114,6 @@ pub fn transaction_to_visual_sign(
 }
 
 /// Public API function for string-based transactions
-#[allow(dead_code)]
 pub fn transaction_string_to_visual_sign(
     transaction_data: &str,
     options: VisualSignOptions,
