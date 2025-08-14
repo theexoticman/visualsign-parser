@@ -15,6 +15,7 @@ pub fn decode_commands(block_data: &SuiTransactionBlockData) -> Vec<SignablePayl
         _ => return vec![],
     };
 
+    // TODO: add comment that available_visualizers is generated
     let visualizers: Vec<Box<dyn CommandVisualizer>> = available_visualizers();
     let visualizers_refs: Vec<&dyn CommandVisualizer> =
         visualizers.iter().map(|v| v.as_ref()).collect::<Vec<_>>();

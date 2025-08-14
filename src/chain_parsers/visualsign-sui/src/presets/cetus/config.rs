@@ -9,6 +9,18 @@ use crate::{
 
 use sui_json_rpc_types::{SuiArgument, SuiCallArg};
 
+// Proposed layout for the macros.
+// chain_config! {
+//     cetus_testnet_package => {
+//         package_id => 0xb2db7142fa83210a7d78d9c12ac49c043b3cbbd482224fea6e3da00aa5a5ae2d,
+//         modules: {
+//             pool_script_v2: {
+//                 swap_b2a(input_amount: u64 => 4, min_output_amount: u64 => 5)
+//             }
+//         }
+//     },
+// };
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PoolScriptV2Functions {
     SwapB2A,
