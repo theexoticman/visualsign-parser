@@ -1,7 +1,8 @@
 use crate::errors;
 use crate::{
-    AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldAmountV2,
-    SignablePayloadFieldCommon, SignablePayloadFieldNumber, SignablePayloadFieldTextV2,
+    AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldAddressV2,
+    SignablePayloadFieldAmountV2, SignablePayloadFieldCommon, SignablePayloadFieldNumber,
+    SignablePayloadFieldTextV2,
 };
 
 use regex::Regex;
