@@ -4,11 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-base64 = "0.22.1"
 serde_json = { version = "1.0" }
 serde = { version = "1.0", features = ["derive"] }
 pretty_assertions = "1.4.1"
 thiserror = "2.0.12"
+# the most minimal regex import so that I can do number validation
+regex = { version = "1.11.1", default-features = false, features = ["std"] }
 
 [dev-dependencies]
+base64 = "0.22.1"
 hex = "0.4.3"

@@ -11,7 +11,9 @@ use visualsign::{
     AnnotatedPayloadField, SignablePayload, SignablePayloadField, SignablePayloadFieldCommon,
     SignablePayloadFieldListLayout, SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
     encodings::SupportedEncodings,
-    field_builders::{create_amount_field, create_number_field, create_text_field},
+    field_builders::{
+        create_amount_field, create_number_field, create_raw_data_field, create_text_field,
+    },
     vsptrait::{
         Transaction, TransactionParseError, VisualSignConverter, VisualSignConverterFromString,
         VisualSignError, VisualSignOptions,
@@ -721,10 +723,13 @@ fn convert_to_visual_sign_payload(
             program_id if program_id.starts_with("SPoo1") => {
                 if let Ok(instruction_type) = parse_stake_pool_instruction(&instruction.data) {
                     SignablePayloadFieldListLayout {
-                        fields: vec![create_text_field(
-                            "Stake Pool Instruction",
-                            &format_stake_pool_instruction(&instruction_type),
-                        )],
+                        fields: vec![
+                            create_text_field(
+                                "Stake Pool Instruction",
+                                &format_stake_pool_instruction(&instruction_type),
+                            )
+                            .unwrap(),
+                        ],
                     }
                 } else {
                     create_default_expanded_fields(program_id, &instruction.data)
@@ -900,8 +905,8 @@ fn format_associated_token_instruction(
 ) -> SignablePayloadFieldListLayout {
     SignablePayloadFieldListLayout {
         fields: vec![
-            create_text_field("Program ID", program_id),
-            create_text_field("Instruction", &format_ata_instruction(instruction)),
+            create_text_field("Program ID", program_id).unwrap(),
+            create_text_field("Instruction", &format_ata_instruction(instruction)).unwrap(),
         ],
     }
 }
@@ -974,44 +979,47 @@ fn create_compute_budget_expanded_fields(
     program_id: &str,
     data: &[u8],
 ) -> Vec<AnnotatedPayloadField> {
-    let mut fields = vec![create_text_field("Program ID", program_id)];
+    let mut fields = vec![create_text_field("Program ID", program_id).unwrap()];
 
     // Add specific fields based on instruction type
     match instruction {
         ComputeBudgetInstruction::RequestHeapFrame(bytes) => {
-            fields.push(create_number_field(
-                "Heap Frame Size",
-                &bytes.to_string(),
-                "bytes",
-            ));
+            fields.push(
+                create_number_field("Heap Frame Size", &bytes.to_string(), "bytes")
+                    .expect("needs to be numeric"),
+            );
         }
         ComputeBudgetInstruction::SetComputeUnitLimit(units) => {
-            fields.push(create_number_field(
-                "Compute Unit Limit",
-                &units.to_string(),
-                "units",
-            ));
+            fields.push(
+                create_number_field("Compute Unit Limit", &units.to_string(), "units")
+                    .expect("compute units need to be numeric"),
+            );
         }
         ComputeBudgetInstruction::SetComputeUnitPrice(micro_lamports) => {
-            fields.push(create_number_field(
-                "Price per Compute Unit",
-                &micro_lamports.to_string(),
-                "micro-lamports",
-            ));
+            fields.push(
+                create_number_field(
+                    "Price per Compute Unit",
+                    &micro_lamports.to_string(),
+                    "micro-lamports",
+                )
+                .expect("price needs to be numeric"),
+            );
         }
         ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit(bytes) => {
-            fields.push(create_number_field(
-                "Data Size Limit",
-                &bytes.to_string(),
-                "bytes",
-            ));
+            fields.push(
+                create_number_field("Data Size Limit", &bytes.to_string(), "bytes")
+                    .expect("data size limit needs to be numeric"),
+            );
         }
         ComputeBudgetInstruction::Unused => {
             // No additional fields for unused instruction
         }
     }
 
-    fields.push(create_text_field("Raw Data", &hex::encode(data)));
+    let hex_fallback_string = hex::encode(data).to_string();
+    let raw_data_field = create_raw_data_field(data, Some(hex_fallback_string)).unwrap();
+
+    fields.push(raw_data_field);
     fields
 }
 
@@ -1020,7 +1028,7 @@ fn create_system_instruction_expanded_fields(
     program_id: &str,
     data: &[u8],
 ) -> Vec<AnnotatedPayloadField> {
-    let mut fields = vec![create_text_field("Program ID", program_id)];
+    let mut fields = vec![create_text_field("Program ID", program_id).unwrap()];
 
     // Add specific fields based on instruction type
     match instruction {
@@ -1030,36 +1038,43 @@ fn create_system_instruction_expanded_fields(
             owner,
         } => {
             fields.push(create_sol_amount_field("Amount", *lamports));
-            fields.push(create_number_field("Space", &space.to_string(), "bytes"));
-            fields.push(create_text_field("Owner", &owner.to_string()));
+            fields.push(
+                create_number_field("Space", &space.to_string(), "bytes")
+                    .expect("space needs to be numeric"),
+            );
+            fields.push(create_text_field("Owner", &owner.to_string()).unwrap());
         }
         SystemInstruction::Transfer { lamports } => {
             fields.push(create_sol_amount_field("Transfer Amount", *lamports));
         }
         SystemInstruction::Assign { owner } => {
-            fields.push(create_text_field("New Owner", &owner.to_string()));
+            fields.push(create_text_field("New Owner", &owner.to_string()).unwrap());
         }
         SystemInstruction::Allocate { space } => {
-            fields.push(create_number_field("Space", &space.to_string(), "bytes"));
+            fields.push(
+                create_number_field("Space", &space.to_string(), "bytes")
+                    .expect("space needs to be numeric"),
+            );
         }
         _ => {
             // For other system instructions, just show the instruction type
-            fields.push(create_text_field(
-                "Instruction Details",
-                &format!("{:?}", instruction),
-            ));
+            fields.push(
+                create_text_field("Instruction Details", &format!("{:?}", instruction)).unwrap(),
+            );
         } // TODO: add expansion for rest of the SystemInstruction enums
     }
 
-    fields.push(create_text_field("Raw Data", &hex::encode(data)));
+    let hex_fallback_string = hex::encode(data).to_string();
+    let raw_data_field = create_raw_data_field(data, Some(hex_fallback_string)).unwrap();
+    fields.push(raw_data_field);
     fields
 }
 
 fn create_default_expanded_fields(program_id: &str, data: &[u8]) -> SignablePayloadFieldListLayout {
     SignablePayloadFieldListLayout {
         fields: vec![
-            create_text_field("Program ID", program_id),
-            create_text_field("Raw Data", &hex::encode(data)),
+            create_text_field("Program ID", program_id).unwrap(),
+            create_text_field("Raw Data", &hex::encode(data)).unwrap(),
         ],
     }
 }
@@ -1069,7 +1084,7 @@ fn create_jupiter_swap_expanded_fields(
     program_id: &str,
     data: &[u8],
 ) -> Vec<AnnotatedPayloadField> {
-    let mut fields = vec![create_text_field("Program ID", program_id)];
+    let mut fields = vec![create_text_field("Program ID", program_id).unwrap()];
 
     // Add specific fields based on instruction type
     match instruction {
@@ -1079,36 +1094,41 @@ fn create_jupiter_swap_expanded_fields(
             slippage_bps,
         } => {
             if let Some(token) = in_token {
-                fields.push(create_text_field("Input Token", &token.symbol));
-                fields.push(create_amount_field(
-                    "Input Amount",
-                    &token.human_readable_amount,
-                    &token.symbol,
-                ));
+                fields.push(create_text_field("Input Token", &token.symbol).unwrap());
+                fields.push(
+                    create_amount_field(
+                        "Input Amount",
+                        &token.human_readable_amount,
+                        &token.symbol,
+                    )
+                    .expect("amount needs to be numeric"),
+                );
                 if !token.name.is_empty() && token.name != token.symbol {
-                    fields.push(create_text_field("Input Token Name", &token.name));
+                    fields.push(create_text_field("Input Token Name", &token.name).unwrap());
                 }
-                fields.push(create_text_field("Input Token Address", &token.address));
+                fields.push(create_text_field("Input Token Address", &token.address).unwrap());
             }
 
             if let Some(token) = out_token {
-                fields.push(create_text_field("Output Token", &token.symbol));
-                fields.push(create_amount_field(
-                    "Quoted Output Amount",
-                    &token.human_readable_amount,
-                    &token.symbol,
-                ));
+                fields.push(create_text_field("Output Token", &token.symbol).unwrap());
+                fields.push(
+                    create_amount_field(
+                        "Quoted Output Amount",
+                        &token.human_readable_amount,
+                        &token.symbol,
+                    )
+                    .expect("Quoted Output Amount needs to be numeric or token symbol missing"),
+                );
                 if !token.name.is_empty() && token.name != token.symbol {
-                    fields.push(create_text_field("Output Token Name", &token.name));
+                    fields.push(create_text_field("Output Token Name", &token.name).unwrap());
                 }
-                fields.push(create_text_field("Output Token Address", &token.address));
+                fields.push(create_text_field("Output Token Address", &token.address).unwrap());
             }
 
-            fields.push(create_number_field(
-                "Slippage",
-                &slippage_bps.to_string(),
-                "bps",
-            ));
+            fields.push(
+                create_number_field("Slippage", &slippage_bps.to_string(), "bps")
+                    .expect("slippage expected to be numeric"),
+            );
         }
         JupiterSwapInstruction::ExactOutRoute {
             in_token,
@@ -1116,36 +1136,41 @@ fn create_jupiter_swap_expanded_fields(
             slippage_bps,
         } => {
             if let Some(token) = in_token {
-                fields.push(create_text_field("Input Token", &token.symbol));
-                fields.push(create_amount_field(
-                    "Max Input Amount",
-                    &token.human_readable_amount,
-                    &token.symbol,
-                ));
+                fields.push(create_text_field("Input Token", &token.symbol).unwrap());
+                fields.push(
+                    create_amount_field(
+                        "Max Input Amount",
+                        &token.human_readable_amount,
+                        &token.symbol,
+                    )
+                    .expect("Invalid Max Input Amount"),
+                );
                 if !token.name.is_empty() && token.name != token.symbol {
-                    fields.push(create_text_field("Input Token Name", &token.name));
+                    fields.push(create_text_field("Input Token Name", &token.name).unwrap());
                 }
-                fields.push(create_text_field("Input Token Address", &token.address));
+                fields.push(create_text_field("Input Token Address", &token.address).unwrap());
             }
 
             if let Some(token) = out_token {
-                fields.push(create_text_field("Output Token", &token.symbol));
-                fields.push(create_amount_field(
-                    "Exact Output Amount",
-                    &token.human_readable_amount,
-                    &token.symbol,
-                ));
+                fields.push(create_text_field("Output Token", &token.symbol).unwrap());
+                fields.push(
+                    create_amount_field(
+                        "Exact Output Amount",
+                        &token.human_readable_amount,
+                        &token.symbol,
+                    )
+                    .expect("Invalid Exact Output Amount"),
+                );
                 if !token.name.is_empty() && token.name != token.symbol {
-                    fields.push(create_text_field("Output Token Name", &token.name));
+                    fields.push(create_text_field("Output Token Name", &token.name).unwrap());
                 }
-                fields.push(create_text_field("Output Token Address", &token.address));
+                fields.push(create_text_field("Output Token Address", &token.address).unwrap());
             }
 
-            fields.push(create_number_field(
-                "Slippage",
-                &slippage_bps.to_string(),
-                "bps",
-            ));
+            fields.push(
+                create_number_field("Slippage", &slippage_bps.to_string(), "bps")
+                    .expect("Slippage needs to be numeric"),
+            );
         }
         JupiterSwapInstruction::SharedAccountsRoute {
             in_token,
@@ -1153,46 +1178,51 @@ fn create_jupiter_swap_expanded_fields(
             slippage_bps,
         } => {
             if let Some(token) = in_token {
-                fields.push(create_text_field("Input Token", &token.symbol));
-                fields.push(create_amount_field(
-                    "Input Amount",
-                    &token.human_readable_amount,
-                    &token.symbol,
-                ));
+                fields.push(create_text_field("Input Token", &token.symbol).unwrap());
+                fields.push(
+                    create_amount_field(
+                        "Input Amount",
+                        &token.human_readable_amount,
+                        &token.symbol,
+                    )
+                    .expect("Invalid Input Amount"),
+                );
                 if !token.name.is_empty() && token.name != token.symbol {
-                    fields.push(create_text_field("Input Token Name", &token.name));
+                    fields.push(create_text_field("Input Token Name", &token.name).unwrap());
                 }
-                fields.push(create_text_field("Input Token Address", &token.address));
+                fields.push(create_text_field("Input Token Address", &token.address).unwrap());
             }
 
             if let Some(token) = out_token {
-                fields.push(create_text_field("Output Token", &token.symbol));
-                fields.push(create_amount_field(
-                    "Quoted Output Amount",
-                    &token.human_readable_amount,
-                    &token.symbol,
-                ));
+                fields.push(create_text_field("Output Token", &token.symbol).unwrap());
+                fields.push(
+                    create_amount_field(
+                        "Quoted Output Amount",
+                        &token.human_readable_amount,
+                        &token.symbol,
+                    )
+                    .expect("Invalid Quoted Output Amount"),
+                );
                 if !token.name.is_empty() && token.name != token.symbol {
-                    fields.push(create_text_field("Output Token Name", &token.name));
+                    fields.push(create_text_field("Output Token Name", &token.name).unwrap());
                 }
-                fields.push(create_text_field("Output Token Address", &token.address));
+                fields.push(create_text_field("Output Token Address", &token.address).unwrap());
             }
 
-            fields.push(create_number_field(
-                "Slippage",
-                &slippage_bps.to_string(),
-                "bps",
-            ));
+            fields.push(
+                create_number_field("Slippage", &slippage_bps.to_string(), "bps")
+                    .expect("Slippage needs to be numeric"),
+            );
         }
         JupiterSwapInstruction::Unknown => {
-            fields.push(create_text_field(
-                "Instruction Type",
-                "Unknown Jupiter Instruction",
-            ));
+            fields.push(
+                create_text_field("Instruction Type", "Unknown Jupiter Instruction").unwrap(),
+            );
         }
     }
-
-    fields.push(create_text_field("Raw Data", &hex::encode(data)));
+    let hex_fallback_string = hex::encode(data).to_string();
+    let raw_data_field = create_raw_data_field(data, Some(hex_fallback_string)).unwrap();
+    fields.push(raw_data_field);
     fields
 }
 
