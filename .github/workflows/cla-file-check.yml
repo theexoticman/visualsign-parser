@@ -1,4 +1,4 @@
-name: "CLA File Check"
+name: cla-file-check
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
 
 # Add permissions for the GitHub token to write comments to pull requests
 permissions:
+  contents: read
   pull-requests: write
 
 jobs:
