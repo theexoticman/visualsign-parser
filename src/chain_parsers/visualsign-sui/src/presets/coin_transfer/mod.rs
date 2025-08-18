@@ -162,6 +162,7 @@ fn get_coin_amount(
 #[cfg(test)]
 mod tests {
     use crate::test_utils::{assert_has_field, payload_from_b64};
+    use visualsign::SignablePayloadField;
 
     #[test]
     fn test_transfer_commands() {
@@ -170,5 +171,73 @@ mod tests {
 
         let payload = payload_from_b64(test_data);
         assert_has_field(&payload, "Transfer Command");
+    }
+
+    #[test]
+    fn test_transfer_commands_single_transfer() {
+        // https://suivision.xyz/txblock/5S2D1qNww9QXDLgCzEr2UReFas7PGFRxdyjCJrYfjUxd
+        let test_data = "AQAAAAAAAwEAVCf5McvToD8qhL+h2/xg7M2l287m7+8IGIpLQ/6cxBYgqxwkAAAAACDT4HJIX5m7UeyrSJQAHz+p5ZniCwngoTE8GX8E6Vu8HgAI5AYAAAAAAAAAIPEcpBpzFvUgalVqqqnn/Y6mrsto2zVvr1FpVbQvZUfiAgIBAAABAQEAAQECAAABAgCCWsIch38qw9SMwyrvCbO4KfA+TwtC/MZ6NYYnVJq0nAFzUrDKacSVDVVrzYCDnNWtV6Of8JseRtaWdzmHWx/eACCrHCQAAAAAIHZmDcOF5ICx52aJBITeT+GXuGbiP1LOdMK9ewrTvoU3glrCHId/KsPUjMMq7wmzuCnwPk8LQvzGejWGJ1SatJz0AQAAAAAAAOi2MgAAAAAAAAFhALPjB1b3CwKNTPZTHUWogbc9Wz5fgXzVTh1I0dhWVAPGoWxP8HzKFAKr7pZSF/eF1ls/V+m8by7W62K4GbDHLAbJHKJuw6P/F6xoTvR/p7PpYvz2kjD0Z+S3PwARYTCtiw==";
+
+        let payload = payload_from_b64(test_data);
+
+        let transfer_command: Option<&SignablePayloadField> = payload
+            .fields
+            .iter()
+            .find(|f| f.label() == "Transfer Command");
+
+        match transfer_command {
+            Some(SignablePayloadField::PreviewLayout { preview_layout, .. }) => {
+                assert_eq!(
+                    preview_layout.expanded.clone().unwrap().fields[0]
+                        .signable_payload_field
+                        .fallback_text(),
+                    "Object ID: 5427f931cbd3a03f2a84bfa1dbfc60eccda5dbcee6efef08188a4b43fe9cc416"
+                );
+
+                assert_eq!(
+                    preview_layout.expanded.clone().unwrap().fields[1]
+                        .signable_payload_field
+                        .fallback_text(),
+                    "0x825ac21c877f2ac3d48cc32aef09b3b829f03e4f0b42fcc67a358627549ab49c"
+                );
+
+                assert_eq!(
+                    preview_layout.expanded.clone().unwrap().fields[2]
+                        .signable_payload_field
+                        .fallback_text(),
+                    "0xf11ca41a7316f5206a556aaaa9e7fd8ea6aecb68db356faf516955b42f6547e2"
+                );
+
+                assert_eq!(
+                    preview_layout.expanded.clone().unwrap().fields[3]
+                        .signable_payload_field
+                        .fallback_text(),
+                    "1764 Unknown"
+                );
+            }
+            _ => panic!("Expected a PreviewLayout for Transfer Command"),
+        }
+    }
+
+    #[test]
+    fn test_transfer_commands_multiple_transfers() {
+        // TODO: this test failed. Should handle few transfers, different coins and amounts.
+        // https://suivision.xyz/txblock/CE46w3GYgWnZU8HF4P149m6ANGebD22xuNqA64v7JykJ
+        let test_data = "AQAAAAAABwEA6Y5kz7fNxZOj6yZRvcQBtXykVIWvnEy6HQ4kpt8rkstEKr0jAAAAACDGqhNnbuG6uY3kzKZ3wji82QjhFjSBp/RhJBmLCmrq9wEANaDAaF3wfproXnOA3DQll20l0sKpI5/pwi7PgTQo2O1EKr0jAAAAACCV7ngIWPDBl8jcZ4ROZMvFsFd+l/bDIgRa5MnJ1U+O8QEAQZqheNp0/QSrywtlsaKcaLpNlWhnDe/rJLnDSL7EdwlJKr0jAAAAACCiuEQMpyzDWUeQLji6IZh2ZVQsJ3bfV9ohbFikWWK/SgEA/yIhccvTw3DNOX0eBnjuJoOlj0wVJnJUPrybRXWIqQNJKr0jAAAAACBS2RDiolpleMxI7YixmXfd0yg8qyjxDdU9AEmpbbEldQAINhwBAwAAAAAAIFyZUAMWUtWCEIOgr0t+NfSLnuhKon4e/foY3MuJlRuaACD8MuPzTp6pDb/8zoOsfdjhmlRpIVq8iqVCQI3qEAcc9AUDAQEAAQEAAAMBAwABAQIAAgABAQQAAQECAgABBQABAwEDAAEBAAABBgBcmVADFlLVghCDoK9LfjX0i57oSqJ+Hv36GNzLiZUbmgODyYnEoQPANAx0dAuxgpZm+6xO4Pe04Z0g0nm0ZewBsEkqvSMAAAAAIHzjp+LIH7ug3H6/wkA/rj8JYefB3x+6gBLpcCd8eSH5YU0cMRSH6QQ2aSXkllPWCW1/QjVC4OwdAmbY+9A8IXBJKr0jAAAAACAGZnIszNBh5u8vrd/vbQoGHT5HS/VtJSZSQjrBwjTvRR3Kxvc/VyIEFiN2ja7agdhYhyERH/driCiKwDVDXkX/SSq9IwAAAAAg4xzfi5cOl6aSFOyMzS9/o9mQYsVgLpDDjT8YYmoILEtcmVADFlLVghCDoK9LfjX0i57oSqJ+Hv36GNzLiZUbmiECAAAAAAAA0KEQAAAAAAAAAWEAzzUYs9lUE87bOysJcBeWH69UoPgvOH5rHStsap6apWhkAMoUnJuM+XoCT3rDH+BUdxw5Skoqdk1VEYCm13k8Bm+W3QJTREXUZtaOs+eopm2qifmjn1oezf2q05W79+rJ";
+        let payload = payload_from_b64(test_data);
+
+        let transfer_commands: Vec<&SignablePayloadField> = payload
+            .fields
+            .iter()
+            .filter(|f| f.label() == "Transfer Command")
+            .collect();
+
+        dbg!(&transfer_commands);
+
+        assert_eq!(
+            transfer_commands.len(),
+            3,
+            "Should have 3 Transfer Command fields"
+        );
     }
 }
