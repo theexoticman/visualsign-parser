@@ -365,168 +365,161 @@ async fn parser_sui_native_transfer_e2e() {
         let parsed_transaction = parse_response.parsed_transaction.unwrap().payload.unwrap();
 
         let expected_sp = serde_json::json!({
-            "Fields": [
-                {
-                    "Type": "text_v2",
-                    "FallbackText": "Sui Network",
-                    "Label": "Network",
-                    "TextV2": {
-                        "Text": "Sui Network"
-                    }
+          "Fields": [
+            {
+              "Type": "text_v2",
+              "FallbackText": "Sui Network",
+              "Label": "Network",
+              "TextV2": {
+                "Text": "Sui Network"
+              }
+            },
+            {
+              "Type": "preview_layout",
+              "FallbackText": "Transfer: 1000000000 MIST (1 SUI)",
+              "Label": "Transfer Command",
+              "PreviewLayout": {
+                "Title": {
+                  "Text": "Transfer: 1000000000 MIST (1 SUI)"
                 },
-                {
-                    "Type": "preview_layout",
-                    "FallbackText": "Transfer 1: 1000000000 MIST (1 SUI)",
-                    "Label": "Transfer 1",
-                    "PreviewLayout": {
-                        "Title": {
-                            "Text": "Transfer 1: 1000000000 MIST (1 SUI)"
-                        },
-                        "Subtitle": {
-                            "Text": "From 0xd6e9...cac2 to 0xabcd...7890"
-                        },
-                        "Condensed": {
-                            "Fields": [
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "Transfer 1000000000 Sui from 0xd6e9...cac2 to 0xabcd...7890",
-                                    "Label": "Summary",
-                                    "TextV2": {
-                                        "Text": "Transfer 1000000000 Sui from 0xd6e9...cac2 to 0xabcd...7890"
-                                    }
-                                }
-                            ]
-                        },
-                        "Expanded": {
-                            "Fields": [
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "Sui",
-                                    "Label": "Asset Object ID",
-                                    "TextV2": {
-                                        "Text": "Sui"
-                                    }
-                                },
-                                {
-                                    "Type": "address_v2",
-                                    "FallbackText": "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2",
-                                    "Label": "From",
-                                    "AddressV2": {
-                                        "Address": "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2"
-                                    }
-                                },
-                                {
-                                    "Type": "address_v2",
-                                    "FallbackText": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-                                    "Label": "To",
-                                    "AddressV2": {
-                                        "Address": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-                                    }
-                                },
-                                {
-                                    "Type": "amount_v2",
-                                    "FallbackText": "1000000000 Sui",
-                                    "Label": "Amount",
-                                    "AmountV2": {
-                                        "Amount": "1000000000",
-                                        "Abbreviation": "Sui"
-                                    }
-                                }
-                            ]
-                        }
-                    }
+                "Subtitle": {
+                  "Text": "From 0xd6e9...cac2 to 0xabcd...7890"
                 },
-                {
-                    "Type": "preview_layout",
-                    "FallbackText": "Transaction Details",
-                    "Label": "Transaction",
-                    "PreviewLayout": {
-                        "Title": {
-                            "Text": "Transaction Details"
-                        },
-                        "Subtitle": {
-                            "Text": "Gas: 5000000 MIST"
-                        },
-                        "Condensed": {
-                            "Fields": [
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "Programmable Transaction",
-                                    "Label": "Type",
-                                    "TextV2": {
-                                        "Text": "Programmable Transaction"
-                                    }
-                                },
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "5000000 MIST",
-                                    "Label": "Gas Budget",
-                                    "TextV2": {
-                                        "Text": "5000000 MIST"
-                                    }
-                                }
-                            ]
-                        },
-                        "Expanded": {
-                            "Fields": [
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "Programmable Transaction",
-                                    "Label": "Transaction Type",
-                                    "TextV2": {
-                                        "Text": "Programmable Transaction"
-                                    }
-                                },
-                                {
-                                    "Type": "address_v2",
-                                    "FallbackText": "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2",
-                                    "Label": "Gas Owner",
-                                    "AddressV2": {
-                                        "Address": "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2"
-                                    }
-                                },
-                                {
-                                    "Type": "amount_v2",
-                                    "FallbackText": "5000000 MIST",
-                                    "Label": "Gas Budget",
-                                    "AmountV2": {
-                                        "Amount": "5000000",
-                                        "Abbreviation": "MIST"
-                                    }
-                                },
-                                {
-                                    "Type": "amount_v2",
-                                    "FallbackText": "1000 MIST",
-                                    "Label": "Gas Price",
-                                    "AmountV2": {
-                                        "Amount": "1000",
-                                        "Abbreviation": "MIST"
-                                    }
-                                },
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "2",
-                                    "Label": "Commands",
-                                    "TextV2": {
-                                        "Text": "2"
-                                    }
-                                },
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "The raw instruction data in base64 format",
-                                    "Label": "Raw Data",
-                                    "TextV2": {
-                                        "Text": "AAACACCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJCrze8SNFZ4kAAIAMqaOwAAAAACAgABAQEAAQECAAABAADW6S4ALibDr7IIgAHBtYILZPK8NRv9paI0Ksv59cHKwgHLSF74CguvkHmmIcQsiwy2XOmYbhyB/RbuiAOPAEpa7Rua1BcAAAAAIGOAX4LpV/FYmnpiNGs3y1rsDwwf9O10x5SdK7vXP+9Q1ukuAC4mw6+yCIABwbWCC2TyvDUb/aWiNCrL+fXBysLoAwAAAAAAAEBLTAAAAAAAAA=="
-                                    }
-                                }
-                            ]
-                        }
+                "Condensed": {
+                  "Fields": [
+                    {
+                      "Type": "text_v2",
+                      "FallbackText": "Transfer 1000000000 MIST from 0xd6e9...cac2 to 0xabcd...7890",
+                      "Label": "Summary",
+                      "TextV2": {
+                        "Text": "Transfer 1000000000 MIST from 0xd6e9...cac2 to 0xabcd...7890"
+                      }
                     }
+                  ]
+                },
+                "Expanded": {
+                  "Fields": [
+                    {
+                      "Type": "text_v2",
+                      "FallbackText": "Sui",
+                      "Label": "Asset Object ID",
+                      "TextV2": {
+                        "Text": "Sui"
+                      }
+                    },
+                    {
+                      "Type": "address_v2",
+                      "FallbackText": "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2",
+                      "Label": "From",
+                      "AddressV2": {
+                        "Address": "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2"
+                      }
+                    },
+                    {
+                      "Type": "address_v2",
+                      "FallbackText": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+                      "Label": "To",
+                      "AddressV2": {
+                        "Address": "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+                      }
+                    },
+                    {
+                      "Type": "amount_v2",
+                      "FallbackText": "1000000000 MIST",
+                      "Label": "Amount",
+                      "AmountV2": {
+                        "Amount": "1000000000",
+                        "Abbreviation": "MIST"
+                      }
+                    }
+                  ]
                 }
-            ],
-            "PayloadType": "Sui",
-            "Title": "Programmable Transaction",
-            "Version": "0"
+              }
+            },
+            {
+              "Type": "preview_layout",
+              "FallbackText": "Transaction Details",
+              "Label": "Transaction Details",
+              "PreviewLayout": {
+                "Title": {
+                  "Text": "Transaction Details"
+                },
+                "Subtitle": {
+                  "Text": "Gas: 5000000 MIST"
+                },
+                "Condensed": {
+                  "Fields": [
+                    {
+                      "Type": "text_v2",
+                      "FallbackText": "Programmable Transaction",
+                      "Label": "Transaction Type",
+                      "TextV2": {
+                        "Text": "Programmable Transaction"
+                      }
+                    },
+                    {
+                      "Type": "amount_v2",
+                      "FallbackText": "5000000 MIST",
+                      "Label": "Gas Budget",
+                      "AmountV2": {
+                        "Amount": "5000000",
+                        "Abbreviation": "MIST"
+                      }
+                    }
+                  ]
+                },
+                "Expanded": {
+                  "Fields": [
+                    {
+                      "Type": "text_v2",
+                      "FallbackText": "Programmable Transaction",
+                      "Label": "Transaction Type",
+                      "TextV2": {
+                        "Text": "Programmable Transaction"
+                      }
+                    },
+                    {
+                      "Type": "address_v2",
+                      "FallbackText": "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2",
+                      "Label": "Gas Owner",
+                      "AddressV2": {
+                        "Address": "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2"
+                      }
+                    },
+                    {
+                      "Type": "amount_v2",
+                      "FallbackText": "5000000 MIST",
+                      "Label": "Gas Budget",
+                      "AmountV2": {
+                        "Amount": "5000000",
+                        "Abbreviation": "MIST"
+                      }
+                    },
+                    {
+                      "Type": "amount_v2",
+                      "FallbackText": "1000 MIST",
+                      "Label": "Gas Price",
+                      "AmountV2": {
+                        "Amount": "1000",
+                        "Abbreviation": "MIST"
+                      }
+                    },
+                    {
+                      "Type": "text_v2",
+                      "FallbackText": "0000020020abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890000800ca9a3b00000000020200010101000101020000010000d6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac201cb485ef80a0baf9079a621c42c8b0cb65ce9986e1c81fd16ee88038f004a5aed1b9ad417000000002063805f82e957f1589a7a62346b37cb5aec0f0c1ff4ed74c7949d2bbbd73fef50d6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2e803000000000000404b4c000000000000",
+                      "Label": "Raw Data",
+                      "TextV2": {
+                        "Text": "0000020020abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890000800ca9a3b00000000020200010101000101020000010000d6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac201cb485ef80a0baf9079a621c42c8b0cb65ce9986e1c81fd16ee88038f004a5aed1b9ad417000000002063805f82e957f1589a7a62346b37cb5aec0f0c1ff4ed74c7949d2bbbd73fef50d6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2e803000000000000404b4c000000000000"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "PayloadType": "Sui",
+          "Title": "Programmable Transaction",
+          "Version": "0"
         });
 
         let signable_payload: serde_json::Value =

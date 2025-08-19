@@ -5,6 +5,11 @@ edition = "2024"
 publish = false
 
 [dependencies]
+tracing = { workspace = true }
+tracing-log = "0.2.0"
+tracing-bunyan-formatter = "0.3.10"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+
 parser_app = { path = "../app" }
 borsh = { version = "1.5.7", features = ["std"], default-features = false }
 generated = { path = "../../generated" }

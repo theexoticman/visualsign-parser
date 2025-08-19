@@ -1,6 +1,12 @@
-pub mod commands;
-pub mod field_helpers;
-pub mod module_resolver;
-pub mod visualsign;
+mod core;
+mod integrations;
+mod presets;
+mod utils;
 
-pub use visualsign::{SuiTransactionWrapper, SuiVisualSignConverter};
+pub use core::{
+    SuiTransactionWrapper, SuiVisualSignConverter, VisualizeResult,
+    transaction_string_to_visual_sign, transaction_to_visual_sign,
+};
+
+#[allow(unused_imports)]
+pub(crate) use utils::*;
