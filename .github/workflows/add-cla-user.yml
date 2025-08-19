@@ -85,13 +85,35 @@ jobs:
         run: |
           AUTHOR_USERNAME="${{ steps.pr.outputs.author }}"
           COMMENTER="${{ github.event.comment.user.login }}"
+          BATCH_BRANCH="cla-signers-batch"
 
           echo "Adding ${AUTHOR_USERNAME} to .cla-signed-users"
 
-          # Check if user is already in the list
+          # Check if user is already in the list on main branch
           if grep -q -w "$AUTHOR_USERNAME" .cla-signed-users; then
             echo "User is already in the list."
             gh pr comment ${{ github.event.issue.number }} --body "ℹ️ @${AUTHOR_USERNAME} is already in the CLA signers list."
+            exit 0
+          fi
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if batch branch exists, if not create it from main
+          if git ls-remote --exit-code --heads origin "$BATCH_BRANCH" > /dev/null 2>&1; then
+            echo "Batch branch exists, checking it out"
+            git fetch origin "$BATCH_BRANCH"
+            git checkout "$BATCH_BRANCH"
+          else
+            echo "Creating new batch branch"
+            git checkout -b "$BATCH_BRANCH"
+          fi
+
+          # Check if user is already in the batch branch
+          if grep -q -w "$AUTHOR_USERNAME" .cla-signed-users; then
+            echo "User is already in the batch branch."
+            gh pr comment ${{ github.event.issue.number }} --body "ℹ️ @${AUTHOR_USERNAME} is already pending approval in the CLA signers batch."
             exit 0
           fi
 
@@ -99,21 +121,40 @@ jobs:
           (cat .cla-signed-users; echo "${AUTHOR_USERNAME}") | sort -u > .cla-signed-users.tmp
           mv .cla-signed-users.tmp .cla-signed-users
 
-          # Configure git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Commit and push the change to main
+          # Commit the change to batch branch
           git add .cla-signed-users
           git commit -m "chore: Add @${AUTHOR_USERNAME} to CLA signers list
 
           Approved by: @${COMMENTER}
           Related PR: #${{ github.event.issue.number }}"
-          git push origin main
+          git push origin "$BATCH_BRANCH"
 
-          echo "✅ User added to CLA signers list on main branch"
+          echo "✅ User added to CLA signers batch branch"
 
-          # Comment on PR to confirm
-          gh pr comment ${{ github.event.issue.number }} --body "✅ @${AUTHOR_USERNAME} has been added to the CLA signers list by @${COMMENTER}. The CLA check should now pass on the next run."
+          # Check if a PR already exists for the batch branch
+          EXISTING_PR=$(gh pr list --head "$BATCH_BRANCH" --base main --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Updating existing batch PR #${EXISTING_PR}"
+            gh pr comment "$EXISTING_PR" --body "✅ Added @${AUTHOR_USERNAME} to the CLA signers batch (approved by @${COMMENTER} in PR #${{ github.event.issue.number }})"
+            gh pr comment ${{ github.event.issue.number }} --body "✅ @${AUTHOR_USERNAME} has been added to the CLA signers batch PR #${EXISTING_PR} by @${COMMENTER}. The CLA check will pass once the batch PR is merged."
+          else
+            echo "Creating new batch PR"
+            NEW_PR=$(gh pr create \
+              --title "chore: Add CLA signers batch" \
+              --body "This PR adds new CLA signers in batch to comply with repository rules.
+
+            Recent additions:
+            - @${AUTHOR_USERNAME} (approved by @${COMMENTER} in PR #${{ github.event.issue.number }})
+
+            This PR will be updated automatically as more users are approved." \
+              --head "$BATCH_BRANCH" \
+              --base main \
+              --label "cla" \
+              | grep -o '#[0-9]\+' | head -1 | tr -d '#')
+
+            echo "Created new batch PR #${NEW_PR}"
+            gh pr comment ${{ github.event.issue.number }} --body "✅ @${AUTHOR_USERNAME} has been added to a new CLA signers batch PR #${NEW_PR} by @${COMMENTER}. The CLA check will pass once the batch PR is merged."
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
