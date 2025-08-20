@@ -26,7 +26,7 @@ impl CommandVisualizer for SuilendVisualizer {
         let Some(SuiCommand::MoveCall(pwc)) = context.commands().get(context.command_index())
         else {
             return Err(VisualSignError::MissingData(
-                "Expected to get MoveCall for suilend parsing".into(),
+                "Expected a `MoveCall` for Suilend parsing".into(),
             ));
         };
 

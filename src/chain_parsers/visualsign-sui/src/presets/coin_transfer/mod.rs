@@ -24,7 +24,7 @@ impl CommandVisualizer for CoinTransferVisualizer {
             context.commands().get(context.command_index())
         else {
             return Err(VisualSignError::MissingData(
-                "Expected to get TransferObjects for coin transfer parsing".into(),
+                "Expected `TransferObjects` for coin transfer parsing".into(),
             ));
         };
 
@@ -100,7 +100,7 @@ fn resolve_object(
                     }
                 },
                 SuiCallArg::Pure(_) => Err(TransactionParseError::UnsupportedVersion(
-                    "Parsing Sui native transfer input expected Object".into(),
+                    "Parsing Sui native transfer input expected `Object`".into(),
                 )
                 .into()),
             }
@@ -115,7 +115,7 @@ fn resolve_object(
                     resolve_object(commands, inputs, coin_type)
                 }
                 _ => Err(TransactionParseError::UnsupportedVersion(
-                    "Parsing Sui native transfer expected SplitCoins or MergeCoins".into(),
+                    "Parsing Sui native transfer expected `SplitCoins` or `MergeCoins`".into(),
                 )
                 .into()),
             }
@@ -313,7 +313,7 @@ mod tests {
         assert_eq!(
             transfer_commands.len(),
             4,
-            "Should have 4 Transfer Command fields"
+            "Should have four Transfer Command fields"
         );
     }
 }

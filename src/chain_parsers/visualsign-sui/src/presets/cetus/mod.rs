@@ -25,7 +25,7 @@ impl CommandVisualizer for CetusVisualizer {
         let Some(SuiCommand::MoveCall(pwc)) = context.commands().get(context.command_index())
         else {
             return Err(VisualSignError::MissingData(
-                "Expected to get MoveCall for Cetus parsing".into(),
+                "Expected a `MoveCall` for Cetus parsing".into(),
             ));
         };
 

@@ -6,19 +6,21 @@ use sui_json::SuiJsonValue;
 use sui_json_rpc_types::{SuiCallArg, SuiPureValue};
 use visualsign::errors::VisualSignError;
 
-// TODO: think about u256 and fallback options
+// TODO: Consider `u256` support and fallback options
 pub fn decode_number<T>(call_arg: &SuiCallArg) -> Result<T, VisualSignError>
 where
     T: FromLeBytes,
 {
     match call_arg {
         SuiCallArg::Object(_) => Err(VisualSignError::DecodeError(
-            "Unexpected object in decode_number function".to_string(),
+            "Unexpected object in `decode_number`".to_string(),
         )),
         SuiCallArg::Pure(value) => match value.value_type() {
             None => {
                 let bytes = json_array_to_bytes(&value.value().to_json_value()).ok_or(
-                    VisualSignError::DecodeError("Failed to convert call arg to json value".into()),
+                    VisualSignError::DecodeError(
+                        "Failed to convert call argument to JSON value".into(),
+                    ),
                 )?;
                 T::from_le_bytes(&bytes).ok_or(VisualSignError::DecodeError(
                     "Failed to decode number".into(),

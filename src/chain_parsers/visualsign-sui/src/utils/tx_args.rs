@@ -2,21 +2,21 @@ use sui_json_rpc_types::SuiArgument;
 use sui_json_rpc_types::SuiArgument::Input;
 use visualsign::errors::VisualSignError;
 
-/// Get index from SUI arguments array (expects single argument)
+/// Gets the index from the Sui arguments array (expects a single argument)
 pub fn get_index(sui_args: &[SuiArgument], index: Option<usize>) -> Result<u16, VisualSignError> {
     let arg: &SuiArgument = match index {
-        Some(i) => sui_args.get(i).ok_or(VisualSignError::MissingData(
-            "Index out of bounds for index".into(),
-        ))?,
-        None => sui_args.first().ok_or(VisualSignError::MissingData(
-            "No arguments provided for index".into(),
-        ))?,
+        Some(i) => sui_args
+            .get(i)
+            .ok_or(VisualSignError::MissingData("Index out of bounds".into()))?,
+        None => sui_args
+            .first()
+            .ok_or(VisualSignError::MissingData("No arguments provided".into()))?,
     };
 
     parse_numeric_argument(arg)
 }
 
-/// Get specific value from `NestedResult` by argument index and nested index
+/// Gets a specific value from `NestedResult` by argument index and nested index
 pub fn get_nested_result_value(
     sui_args: &[SuiArgument],
     arg_index: usize,
@@ -33,17 +33,19 @@ pub fn get_nested_result_value(
             .ok_or(VisualSignError::MissingData(
                 "Nested index out of bounds".into(),
             )),
-        _ => Err(VisualSignError::DecodeError("Expected NestedResult".into())),
+        _ => Err(VisualSignError::DecodeError(
+            "Expected `NestedResult`".into(),
+        )),
     }
 }
 
-/// Parse numeric argument from SUI argument (Input or Result)
+/// Parses a numeric argument from a Sui argument (`Input` or `Result`)
 pub fn parse_numeric_argument(arg: &SuiArgument) -> Result<u16, VisualSignError> {
     match arg {
         Input(index) => Ok(*index),
         SuiArgument::Result(index) => Ok(*index),
         _ => Err(VisualSignError::DecodeError(
-            "Parsing numeric argument from SUI argument (expected Input or Result)".into(),
+            "Parsing numeric argument from Sui argument (expected `Input` or `Result`)".into(),
         )),
     }
 }
@@ -56,6 +58,6 @@ where
         .get(index)
         .and_then(|arg| arg.parse().ok())
         .ok_or(VisualSignError::MissingData(
-            "Index out of bounds for tx type arg".into(),
+            "Index out of bounds for transaction type argument".into(),
         ))
 }
