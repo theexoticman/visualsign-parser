@@ -1,6 +1,6 @@
 //! CLI for the parser app
 use qos_core::{
-    QUORUM_FILE, SEC_APP_SOCK,
+    EPHEMERAL_KEY_FILE, SEC_APP_SOCK,
     cli::{EPHEMERAL_FILE_OPT, USOCK},
     handles::EphemeralKeyHandle,
     io::SocketAddress,
@@ -50,7 +50,7 @@ impl GetParserForOptions for ParserParser {
                     "path to file where the Ephemeral Key secret should be retrieved from. Use default for production.",
                 )
                 .takes_value(true)
-                .default_value(QUORUM_FILE),
+                .default_value(EPHEMERAL_KEY_FILE),
             )
     }
 }
