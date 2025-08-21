@@ -132,7 +132,7 @@ pub fn transaction_string_to_visual_sign(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::payload_from_b64;
+    use crate::utils::payload_from_b64;
 
     #[test]
     fn test_sui_transaction_to_vsp() {

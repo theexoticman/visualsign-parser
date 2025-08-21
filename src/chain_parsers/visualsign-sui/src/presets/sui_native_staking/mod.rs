@@ -208,7 +208,9 @@ fn get_stake_amount(
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::{assert_has_field, payload_from_b64};
+    use crate::utils::payload_from_b64;
+
+    use visualsign::test_utils::assert_has_field;
 
     #[test]
     fn test_stake_commands() {

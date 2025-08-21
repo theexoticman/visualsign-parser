@@ -208,7 +208,9 @@ impl CetusVisualizer {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::{assert_has_field, assert_has_field_with_value, payload_from_b64};
+    use crate::utils::payload_from_b64;
+
+    use visualsign::test_utils::{assert_has_field, assert_has_field_with_value};
 
     const CETUS_SWAP_LABEL: &str = "CetusAMM Swap Command";
 

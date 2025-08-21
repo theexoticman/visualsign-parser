@@ -206,7 +206,9 @@ fn get_repay_amount(
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::{assert_has_field, payload_from_b64};
+    use crate::utils::payload_from_b64;
+
+    use visualsign::test_utils::assert_has_field;
 
     const SUILEND_REPAY_LABEL: &str = "Suilend Repay Command";
 
