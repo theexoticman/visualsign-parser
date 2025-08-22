@@ -436,7 +436,7 @@ async fn parser_ethereum_native_transfer_e2e() {
         // Verify the transaction contains Ethereum-specific fields
         let signable_payload: serde_json::Value =
             serde_json::from_str(&parsed_transaction.signable_payload).unwrap();
-
+        assert_eq!(&signable_payload, &expected_sp);
         // Validate that the parsed transaction contains all expected fields
         validate_required_fields_present(&signable_payload, &expected_sp);
     }
