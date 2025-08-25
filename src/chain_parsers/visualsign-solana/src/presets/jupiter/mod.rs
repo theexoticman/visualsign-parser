@@ -1,9 +1,11 @@
 mod config;
-
-use crate::core::{InstructionVisualizer, SolanaIntegrationConfig, VisualizerContext, VisualizerKind};
-use visualsign::{AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldCommon};
-use visualsign::errors::VisualSignError;
+pub mod swap;
+use crate::core::{
+    InstructionVisualizer, SolanaIntegrationConfig, VisualizerContext, VisualizerKind,
+};
 use config::JupiterConfig;
+use visualsign::errors::VisualSignError;
+use visualsign::{AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldCommon};
 
 // Create a static instance that we can reference
 static JUPITER_CONFIG: JupiterConfig = JupiterConfig;
@@ -15,7 +17,8 @@ impl InstructionVisualizer for JupiterVisualizer {
         &self,
         context: &VisualizerContext,
     ) -> Result<AnnotatedPayloadField, VisualSignError> {
-        let instruction = context.current_instruction()
+        let instruction = context
+            .current_instruction()
             .ok_or_else(|| VisualSignError::MissingData("No instruction found".into()))?;
 
         // Basic Jupiter swap visualization
@@ -24,8 +27,12 @@ impl InstructionVisualizer for JupiterVisualizer {
             match discriminator {
                 [0xc1, 0x20, 0x9b, 0x33, 0x41, 0xd6, 0x9c, 0x81] => "Jupiter Swap".to_string(),
                 [0x2a, 0xad, 0xe3, 0x7a, 0x97, 0xcb, 0x17, 0xe5] => "Jupiter Route".to_string(),
-                [0x2a, 0xb6, 0xd0, 0x0c, 0xa8, 0xdf, 0xd7, 0x4b] => "Jupiter Exact Out Route".to_string(),
-                [0x2a, 0xd4, 0xb6, 0x2f, 0xae, 0xaa, 0xf2, 0x3a] => "Jupiter Shared Accounts Route".to_string(),
+                [0x2a, 0xb6, 0xd0, 0x0c, 0xa8, 0xdf, 0xd7, 0x4b] => {
+                    "Jupiter Exact Out Route".to_string()
+                }
+                [0x2a, 0xd4, 0xb6, 0x2f, 0xae, 0xaa, 0xf2, 0x3a] => {
+                    "Jupiter Shared Accounts Route".to_string()
+                }
                 _ => "Jupiter Unknown Instruction".to_string(),
             }
         } else {
