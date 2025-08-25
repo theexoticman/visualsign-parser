@@ -2,7 +2,7 @@ use crate::core::instructions;
 use base64::{self, Engine};
 use solana_sdk::transaction::Transaction as SolanaTransaction;
 use visualsign::{
-    SignablePayload, SignablePayloadField,
+    SignablePayload, SignablePayloadField, SignablePayloadFieldCommon,
     encodings::SupportedEncodings,
     vsptrait::{
         Transaction, TransactionParseError, VisualSignConverter, VisualSignConverterFromString,
@@ -104,7 +104,33 @@ fn convert_to_visual_sign_payload(
     decode_transfers: bool,
     title: Option<String>,
 ) -> Result<SignablePayload, VisualSignError> {
-    let mut fields: Vec<SignablePayloadField> = Vec::new();
+    let message = &transaction.message;
+    let account_keys: Vec<String> = message
+        .account_keys
+        .iter()
+        .map(|key| key.to_string())
+        .collect();
+
+    let mut fields = vec![
+        SignablePayloadField::TextV2 {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "Solana".to_string(),
+                label: "Network".to_string(),
+            },
+            text_v2: visualsign::SignablePayloadFieldTextV2 {
+                text: "Solana".to_string(),
+            },
+        },
+        SignablePayloadField::TextV2 {
+            common: SignablePayloadFieldCommon {
+                fallback_text: account_keys.join(", "),
+                label: "Account Keys".to_string(),
+            },
+            text_v2: visualsign::SignablePayloadFieldTextV2 {
+                text: account_keys.join(", "),
+            },
+        },
+    ];
 
     if decode_transfers {
         fields.extend(
@@ -114,18 +140,19 @@ fn convert_to_visual_sign_payload(
         );
     }
 
+    // Process instructions with visualizers
     fields.extend(
         instructions::decode_instructions(transaction)?
             .iter()
             .map(|e| e.signable_payload_field.clone()),
     );
-    // TODO: details - this is where "advanced stuff would go like account keys"
+
     Ok(SignablePayload::new(
         0,
         title.unwrap_or_else(|| "Solana Transaction".to_string()),
         None,
         fields,
-        "Solana".to_string(),
+        "SolanaTx".to_string(),
     ))
 }
 
