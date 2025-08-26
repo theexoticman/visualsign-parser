@@ -159,9 +159,46 @@ fn convert_to_visual_sign_payload(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::payload_from_b64;
+    use crate::utils::create_transaction_with_empty_signatures;
 
     #[test]
     fn test_solana_transaction_to_vsp() {
-        let test_data = "your_test_data_here";
+        // This was generated using the Solana CLI using solana transfer --sign-only which only prints message, that needs to be wrapped into a transaction
+        // Same as the test fixture used for integration as a baseline
+        let solana_transfer_message = "AgABA3Lgs31rdjnEG5FRyrm2uAi4f+erGdyJl0UtJyMMLGzC9wF+t3qhmhpj3vI369n5Ef5xRLms/Vn8J/Lc7bmoIkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMBafBISARibJ+I25KpHkjLe53ZrqQcLWGy8n97yWD7mAQICAQAMAgAAAADKmjsAAAAA";
+        let solana_transfer_transaction =
+            create_transaction_with_empty_signatures(solana_transfer_message);
+        let payload = payload_from_b64(&solana_transfer_transaction);
+        assert_eq!(payload.title, "Solana Transaction");
+        assert_eq!(payload.version, "0");
+        assert_eq!(payload.payload_type, "SolanaTx");
+
+        assert!(!payload.fields.is_empty());
+
+        let network_field = payload.fields.iter().find(|f| f.label() == "Network");
+        assert!(network_field.is_some());
+        assert_eq!(
+            network_field.unwrap().fallback_text(),
+            &"Solana".to_string()
+        );
+
+        let json_result = payload.to_json();
+        assert!(json_result.is_ok());
+    }
+
+    #[test]
+    fn test_solana_transaction_trait() {
+        let solana_transfer_message = "AgABA3Lgs31rdjnEG5FRyrm2uAi4f+erGdyJl0UtJyMMLGzC9wF+t3qhmhpj3vI369n5Ef5xRLms/Vn8J/Lc7bmoIkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMBafBISARibJ+I25KpHkjLe53ZrqQcLWGy8n97yWD7mAQICAQAMAgAAAADKmjsAAAAA";
+        let solana_transfer_transaction =
+            create_transaction_with_empty_signatures(solana_transfer_message);
+        let result = SolanaTransactionWrapper::from_string(&solana_transfer_transaction);
+        assert!(result.is_ok());
+
+        let solana_tx = result.unwrap();
+        assert_eq!(solana_tx.transaction_type(), "Solana");
+
+        let invalid_result = SolanaTransactionWrapper::from_string("invalid_data");
+        assert!(invalid_result.is_err());
     }
 }

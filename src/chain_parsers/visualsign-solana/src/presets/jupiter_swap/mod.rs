@@ -6,7 +6,7 @@ use crate::core::{
     InstructionVisualizer, SolanaIntegrationConfig, VisualizerContext, VisualizerKind,
 };
 use crate::utils::{SwapTokenInfo, get_token_info};
-use config::JupiterConfig;
+use config::JupiterSwapConfig;
 use visualsign::errors::VisualSignError;
 use visualsign::field_builders::{
     create_amount_field, create_number_field, create_raw_data_field, create_text_field,
@@ -37,11 +37,11 @@ pub enum JupiterSwapInstruction {
 }
 
 // Create a static instance that we can reference
-static JUPITER_CONFIG: JupiterConfig = JupiterConfig;
+static JUPITER_CONFIG: JupiterSwapConfig = JupiterSwapConfig;
 
-pub struct JupiterVisualizer;
+pub struct JupiterSwapVisualizer;
 
-impl InstructionVisualizer for JupiterVisualizer {
+impl InstructionVisualizer for JupiterSwapVisualizer {
     fn visualize_tx_commands(
         &self,
         context: &VisualizerContext,

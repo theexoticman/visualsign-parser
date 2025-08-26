@@ -1,5 +1,27 @@
 use std::collections::HashMap;
 
+
+use base64::{self, Engine};
+/// Helper function to create a complete Solana transaction from a message with empty signatures
+pub fn create_transaction_with_empty_signatures(message_base64: &str) -> String {
+    // Decode the message
+    let message_bytes = base64::engine::general_purpose::STANDARD
+        .decode(message_base64)
+        .unwrap();
+
+    // Create a complete Solana transaction with empty signatures
+    let mut transaction_bytes = Vec::new();
+
+    // Add compact array length for signatures (0 signatures)
+    transaction_bytes.push(0u8);
+
+    // Add the message
+    transaction_bytes.extend_from_slice(&message_bytes);
+
+    // Encode the complete transaction back to base64
+    base64::engine::general_purpose::STANDARD.encode(transaction_bytes)
+}
+
 #[derive(Debug, Clone)]
 pub struct TokenInfo {
     pub symbol: &'static str,
@@ -13,7 +35,7 @@ pub fn get_token_lookup_table() -> HashMap<&'static str, TokenInfo> {
 
     // SOL (native)
     tokens.insert(
-        "11111111111111111111111111111111",
+        "11111111111111111111111111111112",
         TokenInfo {
             symbol: "SOL",
             name: "Solana",
@@ -111,6 +133,7 @@ pub mod test_utils {
     use crate::transaction_string_to_visual_sign;
     use visualsign::SignablePayload;
     use visualsign::vsptrait::VisualSignOptions;
+    use super::*;
 
     pub fn payload_from_b64(data: &str) -> SignablePayload {
         transaction_string_to_visual_sign(

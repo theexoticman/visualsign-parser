@@ -1,9 +1,9 @@
 use crate::core::{SolanaIntegrationConfig, SolanaIntegrationConfigData};
 use std::collections::HashMap;
 
-pub struct JupiterConfig;
+pub struct JupiterSwapConfig;
 
-impl SolanaIntegrationConfig for JupiterConfig {
+impl SolanaIntegrationConfig for JupiterSwapConfig {
     fn new() -> Self {
         Self
     }
