@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
 use base64::{self, Engine};
+
+// Constants
+const ADDRESS_TRUNCATION_LENGTH: usize = 8;
 /// Helper function to create a complete Solana transaction from a message with empty signatures
 pub fn create_transaction_with_empty_signatures(message_base64: &str) -> String {
     // Decode the message
