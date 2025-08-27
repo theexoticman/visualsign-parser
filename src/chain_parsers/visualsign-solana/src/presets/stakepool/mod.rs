@@ -29,11 +29,7 @@ impl InstructionVisualizer for StakepoolVisualizer {
         let stakepool_instruction = parse_stake_pool_instruction(&instruction.data)?;
 
         // Generate proper preview layout
-        Ok(create_stakepool_preview_layout(
-            &stakepool_instruction,
-            instruction,
-            context,
-        )?)
+        create_stakepool_preview_layout(&stakepool_instruction, instruction, context)
     }
 
     fn get_config(&self) -> Option<&dyn SolanaIntegrationConfig> {

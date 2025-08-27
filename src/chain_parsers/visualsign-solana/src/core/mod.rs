@@ -124,7 +124,7 @@ pub trait InstructionVisualizer {
 
         // Use Solana's program_id and instruction data
         let program_id = instruction.program_id.to_string();
-        config.can_handle(&program_id, &instruction)
+        config.can_handle(&program_id, instruction)
     }
 }
 

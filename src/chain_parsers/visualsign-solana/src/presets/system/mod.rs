@@ -34,11 +34,7 @@ impl InstructionVisualizer for SystemVisualizer {
             })?;
 
         // Generate proper preview layout
-        Ok(create_system_preview_layout(
-            &system_instruction,
-            instruction,
-            context,
-        )?)
+        create_system_preview_layout(&system_instruction, instruction, context)
     }
 
     fn get_config(&self) -> Option<&dyn SolanaIntegrationConfig> {
@@ -59,12 +55,12 @@ fn create_system_preview_layout(
 
     match instruction {
         SystemInstruction::Transfer { lamports } => {
-            let from_key = solana_instruction
+            let _from_key = solana_instruction
                 .accounts
-                .get(0)
+                .first()
                 .map(|meta| meta.pubkey.to_string())
                 .unwrap_or_else(|| "Unknown".to_string());
-            let to_key = solana_instruction
+            let _to_key = solana_instruction
                 .accounts
                 .get(1)
                 .map(|meta| meta.pubkey.to_string())
@@ -140,7 +136,7 @@ fn create_system_preview_layout(
                 .unwrap_or_else(|| "Unknown".to_string());
             let payer = solana_instruction
                 .accounts
-                .get(0)
+                .first()
                 .map(|meta| meta.pubkey.to_string())
                 .unwrap_or_else(|| "Unknown".to_string());
 

@@ -167,11 +167,11 @@ fn parse_jupiter_swap_instruction(
     let discriminator = &data[0..8];
 
     match discriminator {
-        d if d == &JUPITER_ROUTE_DISCRIMINATOR => parse_route_instruction(data, accounts),
-        d if d == &JUPITER_EXACT_OUT_ROUTE_DISCRIMINATOR => {
+        d if d == JUPITER_ROUTE_DISCRIMINATOR => parse_route_instruction(data, accounts),
+        d if d == JUPITER_EXACT_OUT_ROUTE_DISCRIMINATOR => {
             parse_exact_out_route_instruction(data, accounts)
         }
-        d if d == &JUPITER_SHARED_ACCOUNTS_ROUTE_DISCRIMINATOR => {
+        d if d == JUPITER_SHARED_ACCOUNTS_ROUTE_DISCRIMINATOR => {
             parse_shared_accounts_route_instruction(data, accounts)
         }
         _ => Ok(JupiterSwapInstruction::Unknown),
@@ -184,7 +184,7 @@ fn parse_route_instruction(
 ) -> Result<JupiterSwapInstruction, &'static str> {
     let (in_amount, out_amount) = JupiterSwapInstruction::parse_amounts_from_data(data)?;
 
-    let in_token = accounts.get(0).map(|addr| get_token_info(addr, in_amount));
+    let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
     let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
 
     Ok(JupiterSwapInstruction::Route {
@@ -200,7 +200,7 @@ fn parse_exact_out_route_instruction(
 ) -> Result<JupiterSwapInstruction, &'static str> {
     let (in_amount, out_amount) = JupiterSwapInstruction::parse_amounts_from_data(data)?;
 
-    let in_token = accounts.get(0).map(|addr| get_token_info(addr, in_amount));
+    let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
     let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
 
     Ok(JupiterSwapInstruction::ExactOutRoute {
@@ -216,7 +216,7 @@ fn parse_shared_accounts_route_instruction(
 ) -> Result<JupiterSwapInstruction, &'static str> {
     let (in_amount, out_amount) = JupiterSwapInstruction::parse_amounts_from_data(data)?;
 
-    let in_token = accounts.get(0).map(|addr| get_token_info(addr, in_amount));
+    let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
     let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
 
     Ok(JupiterSwapInstruction::SharedAccountsRoute {

@@ -132,7 +132,6 @@ pub fn get_token_info(address: &str, amount: u64) -> SwapTokenInfo {
 
 #[cfg(test)]
 pub mod test_utils {
-    use super::*;
     use crate::transaction_string_to_visual_sign;
     use visualsign::SignablePayload;
     use visualsign::vsptrait::VisualSignOptions;
