@@ -34,8 +34,8 @@ impl CommandVisualizer for CetusVisualizer {
         };
 
         match function {
-            PoolScriptV2Functions::SwapB2A => Ok(self.handle_swap_b2a(context, pwc)?),
-            PoolScriptV2Functions::SwapA2B => Ok(self.handle_swap_a2b(context, pwc)?),
+            PoolScriptV2Functions::SwapB2A => self.handle_swap(false, context, pwc),
+            PoolScriptV2Functions::SwapA2B => self.handle_swap(true, context, pwc),
         }
     }
 
@@ -49,17 +49,43 @@ impl CommandVisualizer for CetusVisualizer {
 }
 
 impl CetusVisualizer {
-    fn handle_swap_b2a(
+    fn handle_swap(
         &self,
+        is_a2b: bool,
         context: &VisualizerContext,
         pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let input_coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
-        let output_coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
+        let (input_coin, output_coin): (SuiCoin, SuiCoin) = if is_a2b {
+            (
+                get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default(),
+                get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default(),
+            )
+        } else {
+            (
+                get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default(),
+                get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default(),
+            )
+        };
 
-        let input_amount = SwapB2AIndexes::get_amount_in(context.inputs(), &pwc.arguments)?;
-        let min_output_amount =
-            SwapB2AIndexes::get_min_amount_out(context.inputs(), &pwc.arguments)?;
+        let (by_amount_in, amount, amount_limit) = if is_a2b {
+            (
+                SwapA2BIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?,
+                SwapA2BIndexes::get_amount(context.inputs(), &pwc.arguments)?,
+                SwapA2BIndexes::get_amount_limit(context.inputs(), &pwc.arguments)?,
+            )
+        } else {
+            (
+                SwapB2AIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?,
+                SwapB2AIndexes::get_amount(context.inputs(), &pwc.arguments)?,
+                SwapB2AIndexes::get_amount_limit(context.inputs(), &pwc.arguments)?,
+            )
+        };
+
+        let (primary_label, primary_symbol, limit_label, limit_symbol) = if by_amount_in {
+            ("Amount In", input_coin.symbol(), "Min Out", output_coin.symbol())
+        } else {
+            ("Amount Out", output_coin.symbol(), "Max In", input_coin.symbol())
+        };
 
         let list_layout_fields = vec![
             create_address_field(
@@ -70,38 +96,54 @@ impl CetusVisualizer {
                 None,
                 None,
             )?,
-            create_amount_field(
-                "Input Amount",
-                &input_amount.to_string(),
-                input_coin.symbol(),
-            )?,
+            create_amount_field(primary_label, &amount.to_string(), primary_symbol)?,
             create_text_field("Input Coin", &input_coin.to_string())?,
             create_amount_field(
-                "Min Output Amount",
-                &min_output_amount.to_string(),
-                output_coin.symbol(),
+                limit_label,
+                &amount_limit.to_string(),
+                limit_symbol,
             )?,
             create_text_field("Output Coin", &output_coin.to_string())?,
         ];
 
         {
-            let title_text = format!(
-                "CetusAMM Swap: {} {} → {}",
-                input_amount,
-                input_coin.symbol(),
-                output_coin.symbol()
-            );
+            let title_text = if by_amount_in {
+                format!(
+                    "CetusAMM Swap: {} {} → {}",
+                    amount,
+                    input_coin.symbol(),
+                    output_coin.symbol()
+                )
+            } else {
+                format!(
+                    "CetusAMM Swap: {} {} ← {}",
+                    amount,
+                    output_coin.symbol(),
+                    input_coin.symbol()
+                )
+            };
             let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
 
             let condensed = SignablePayloadFieldListLayout {
                 fields: vec![create_text_field(
                     "Summary",
-                    &format!(
-                        "Swap {} to {} (min out: {})",
-                        input_coin.symbol(),
-                        output_coin.symbol(),
-                        min_output_amount
-                    ),
+                    &if by_amount_in {
+                        format!(
+                            "Swap {} to {} ({}: {})",
+                            input_coin.symbol(),
+                            output_coin.symbol(),
+                            limit_label,
+                            amount_limit
+                        )
+                    } else {
+                        format!(
+                            "Swap {} to {} ({}: {})",
+                            input_coin.symbol(),
+                            output_coin.symbol(),
+                            limit_label,
+                            amount_limit
+                        )
+                    },
                 )?],
             };
 
@@ -129,80 +171,6 @@ impl CetusVisualizer {
             }])
         }
     }
-
-    fn handle_swap_a2b(
-        &self,
-        context: &VisualizerContext,
-        pwc: &SuiProgrammableMoveCall,
-    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let input_coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
-        let output_coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
-
-        let max_input_amount = SwapA2BIndexes::get_max_amount_in(context.inputs(), &pwc.arguments)?;
-        let amount_out = SwapA2BIndexes::get_amount_out(context.inputs(), &pwc.arguments)?;
-
-        let list_layout_fields = vec![
-            create_address_field(
-                "User Address",
-                &context.sender().to_string(),
-                None,
-                None,
-                None,
-                None,
-            )?,
-            create_amount_field(
-                "Max Input Amount",
-                &max_input_amount.to_string(),
-                input_coin.symbol(),
-            )?,
-            create_text_field("Input Coin", &input_coin.to_string())?,
-            create_amount_field("Amount Out", &amount_out.to_string(), output_coin.symbol())?,
-            create_text_field("Output Coin", &output_coin.to_string())?,
-        ];
-
-        let title_text = format!(
-            "CetusAMM Swap: {} {} → {}",
-            max_input_amount,
-            input_coin.symbol(),
-            output_coin.symbol()
-        );
-        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
-
-        let condensed = SignablePayloadFieldListLayout {
-            fields: vec![create_text_field(
-                "Summary",
-                &format!(
-                    "Swap {} to {} (max in: {})",
-                    input_coin.symbol(),
-                    output_coin.symbol(),
-                    max_input_amount
-                ),
-            )?],
-        };
-
-        let expanded = SignablePayloadFieldListLayout {
-            fields: list_layout_fields,
-        };
-
-        Ok(vec![AnnotatedPayloadField {
-            static_annotation: None,
-            dynamic_annotation: None,
-            signable_payload_field: SignablePayloadField::PreviewLayout {
-                common: SignablePayloadFieldCommon {
-                    fallback_text: title_text.clone(),
-                    label: "CetusAMM Swap Command".to_string(),
-                },
-                preview_layout: SignablePayloadFieldPreviewLayout {
-                    title: Some(SignablePayloadFieldTextV2 { text: title_text }),
-                    subtitle: Some(SignablePayloadFieldTextV2 {
-                        text: subtitle_text,
-                    }),
-                    condensed: Some(condensed),
-                    expanded: Some(expanded),
-                },
-            },
-        }])
-    }
 }
 
 #[cfg(test)]
@@ -226,13 +194,36 @@ mod tests {
             "User Address",
             "0xae5b675247c0e4875cb4b9bd37a60ed5bcf89278344d3840dd2b426e28a76685",
         );
-        assert_has_field_with_value(&payload, "Input Amount", "29411000");
+        assert_has_field_with_value(&payload, "Amount In", "29411000");
         assert_has_field_with_value(
             &payload,
             "Input Coin",
             "0xb7844e289a8410e50fb3ca48d69eb9cf29e27d223ef90353fe1bd8e27ff8f3f8::coin::COIN",
         );
-        assert_has_field_with_value(&payload, "Min Output Amount", "52051597");
+        assert_has_field_with_value(&payload, "Min Out", "52051597");
+        assert_has_field_with_value(
+            &payload,
+            "Output Coin",
+            "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
+        );
+    }
+
+    #[test]
+    fn test_cetus_amm_swap_b2a_commands_second_tx() {
+        // https://suivision.xyz/txblock/e9Re5Wyn9DxKDhBvGdm4B33kWQ5vy3WxTYV2VAiAZkY
+        let test_data = "AQAAAAAABwAIgJaYAAAAAAABAdqkYpJjLDxNjzHyPqD5s2oo/zZ36WhJgORDhAOmej2PLgUYAAAAAAAAAQFR6IO6fAtWaibLyKlM0z6wq9QYp3zB5grSL9mx8pzSq/uacRYAAAAAAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAAAAAAAAAAAQEACAAAAAAAAAAAABCvMxuoMn+7NbHE/v8AAAAAAwIAAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgRjb2luBHplcm8BB9ujRnLjDLBlsfk+OrVTGHaP1v72bBWULJ98uEbi+QDnBHVzZGMEVVNEQwAAALLbcUL6gyEKfXjZwSrEnAQ7PLvUgiJP6m49oAqlpa4tDnBvb2xfc2NyaXB0X3YyCHN3YXBfYjJhAgfbo0Zy4wywZbH5Pjq1Uxh2j9b+9mwVlCyffLhG4vkA5wR1c2RjBFVTREMABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACA3N1aQNTVUkACQEBAAECAAIBAAIAAAEEAAEAAAEFAAEGAAEDANbpLgAuJsOvsgiAAcG1ggtk8rw1G/2lojQqy/n1wcrCAVjBjfrs4mwio33j60iZ8UjB6mGUyrtTBexLo2AffAsnQaRiJQAAAAAgje7Flwm0mf6pOwOHMRyljUNAIx5biyq8sA9hjzzGvdzW6S4ALibDr7IIgAHBtYILZPK8NRv9paI0Ksv59cHKwvQBAAAAAAAAQEtMAAAAAAAAAWEAmv0HqeZZ8XOfkxmBB62RbVfdjSO8RiD/poT82lU1wq8fuEJ3+monWXJZN3mm0h665bgWDx4XvjYCkth/odtKBgzQ7OmIzoPhw5nTC3tMzLjAySqs8CGINPAk+pl4i3Nm";
+
+        let payload = payload_from_b64(test_data);
+        assert_has_field(&payload, CETUS_SWAP_LABEL);
+
+        assert_has_field_with_value(
+            &payload,
+            "User Address",
+            "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2",
+        );
+        assert_has_field_with_value(&payload, "Amount In", "10000000");
+        assert_has_field_with_value(&payload, "Input Coin", "0x2::sui::SUI");
+        assert_has_field_with_value(&payload, "Min Out", "0");
         assert_has_field_with_value(
             &payload,
             "Output Coin",
@@ -253,7 +244,7 @@ mod tests {
             "User Address",
             "0x1c688a151ecb2fc4a701648d267551160bbb3fe6ab0c82d6cac068ed6cc982c9",
         );
-        assert_has_field_with_value(&payload, "Max Input Amount", "1728516520");
+        assert_has_field_with_value(&payload, "Max In", "1728516520");
         assert_has_field_with_value(
             &payload,
             "Input Coin",
@@ -276,7 +267,7 @@ mod tests {
             "User Address",
             "0x7ee40f31db79f348a2bf4f0b7f75645c2e4f4fc2a9f92aabf45e7ccf81f33613",
         );
-        assert_has_field_with_value(&payload, "Max Input Amount", "188651600");
+        assert_has_field_with_value(&payload, "Max In", "188651600");
         assert_has_field_with_value(
             &payload,
             "Input Coin",
@@ -288,6 +279,29 @@ mod tests {
             "Output Coin",
             "0x6864a6f921804860930db6ddbe2e16acdf8504495ea7481637a1c8b9a8fe54b::cetus::CETUS",
         );
+    }
+
+    #[test]
+    fn test_cetus_amm_swap_a2b_commands_third_tx() {
+        // https://suivision.xyz/txblock/FWTPqRt14LMk5E6MHmEeL8DrrP8LxBLZwiTNYv5C2VD2
+        let test_data = "AQAAAAAACAEAKPL/nMBRjtJXaXgwAO5MjJyE3/r6crROZpN2jutuNpPCW2ElAAAAACBmSUQPADA5tcU3un74+OlSwCM5NzDjHAoPEWVTpV/jowAI6AMAAAAAAAABAdqkYpJjLDxNjzHyPqD5s2oo/zZ36WhJgORDhAOmej2PLgUYAAAAAAAAAQFR6IO6fAtWaibLyKlM0z6wq9QYp3zB5grSL9mx8pzSq/uacRYAAAAAAQEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYBAAAAAAAAAAAAAQEACAAAAAAAAAAAABBQOwEAAQAAAAAAAAAAAAAAAwIBAAABAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACBGNvaW4EemVybwEHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIDc3VpA1NVSQAAALLbcUL6gyEKfXjZwSrEnAQ7PLvUgiJP6m49oAqlpa4tDnBvb2xfc2NyaXB0X3YyCHN3YXBfYTJiAgfbo0Zy4wywZbH5Pjq1Uxh2j9b+9mwVlCyffLhG4vkA5wR1c2RjBFVTREMABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACA3N1aQNTVUkACQECAAEDAAIAAAIBAAEFAAEBAAEGAAEHAAEEANbpLgAuJsOvsgiAAcG1ggtk8rw1G/2lojQqy/n1wcrCAVjBjfrs4mwio33j60iZ8UjB6mGUyrtTBexLo2AffAsnwlthJQAAAAAgCQYRI4jFZ90G7uBUaTnnXL/em6I7yqCMpFMcgNUWwmHW6S4ALibDr7IIgAHBtYILZPK8NRv9paI0Ksv59cHKwvQBAAAAAAAAQEtMAAAAAAAAAWEAdvS3vusFOJ925KuD72lzpy2hrz3+Y/h/goPeG70udZem2mehbxBHOKaYmc+gFuaPZCTx1yFQyb78EZm/ZxCBBAzQ7OmIzoPhw5nTC3tMzLjAySqs8CGINPAk+pl4i3Nm";
+
+        let payload = payload_from_b64(test_data);
+        assert_has_field(&payload, CETUS_SWAP_LABEL);
+
+        assert_has_field_with_value(
+            &payload,
+            "User Address",
+            "0xd6e92e002e26c3afb2088001c1b5820b64f2bc351bfda5a2342acbf9f5c1cac2",
+        );
+        assert_has_field_with_value(&payload, "Amount In", "1000");
+        assert_has_field_with_value(
+            &payload,
+            "Input Coin",
+            "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
+        );
+        assert_has_field_with_value(&payload, "Min Out", "0");
+        assert_has_field_with_value(&payload, "Output Coin", "0x2::sui::SUI");
     }
 
     // https://suivision.xyz/txblock/5GD7JBnjTZDqspScsY2SzY3iy1LKUBJBp7y3NzVnfVdP => collect reward, remove liquidity, close position

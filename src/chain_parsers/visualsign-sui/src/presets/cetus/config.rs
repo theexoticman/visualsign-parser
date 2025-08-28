@@ -8,13 +8,15 @@ crate::chain_config! {
       modules: {
         pool_script_v2 => PoolScriptV2Functions: {
           swap_a2b as SwapA2B => SwapA2BIndexes(
-                amount_out as AmountOut: u64 => 5 => get_amount_out,
-                max_amount_in as MaxAmountIn: u64 => 6 => get_max_amount_in,
+                by_amount_in as ByAmountIn: bool => 4 => get_by_amount_in,
+                amount as Amount: u64 => 5 => get_amount,
+                amount_limit as AmountLimit: u64 => 6 => get_amount_limit,
                 sqrt_price_limit as SqrtPriceLimit: u128 => 7 => get_sqrt_price_limit,
           ),
           swap_b2a as SwapB2A => SwapB2AIndexes(
-                amount_in as AmountIn: u64 => 5 => get_amount_in,
-                min_amount_out as MinAmountOut: u64 => 6 => get_min_amount_out,
+                by_amount_in as ByAmountIn: bool => 4 => get_by_amount_in,
+                amount as Amount: u64 => 5 => get_amount,
+                amount_limit as AmountLimit: u64 => 6 => get_amount_limit,
                 sqrt_price_limit as SqrtPriceLimit: u128 => 7 => get_sqrt_price_limit,
           ),
         },

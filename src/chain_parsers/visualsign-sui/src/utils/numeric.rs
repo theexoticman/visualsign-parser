@@ -45,6 +45,41 @@ pub trait FromLeBytes: Sized {
     fn from_move_value(value: &SuiPureValue) -> Result<Self, VisualSignError>;
 }
 
+impl FromLeBytes for bool {
+    fn from_le_bytes(bytes: &[u8]) -> Option<Self> {
+        match bytes[0] {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        }
+    }
+
+    fn from_move_value(value: &SuiPureValue) -> Result<Self, VisualSignError> {
+        let Some(value_type) = value.value_type() else {
+            return Err(VisualSignError::DecodeError(
+                "Failed to get value type".into(),
+            ));
+        };
+
+        if value_type != TypeTag::Bool {
+            return Err(VisualSignError::DecodeError(
+                "Expected bool value type".into(),
+            ));
+        }
+
+        let move_value =
+            SuiJsonValue::to_move_value(&value.value().to_json_value(), &MoveTypeLayout::Bool)
+                .map_err(|e| VisualSignError::DecodeError(e.to_string()))?;
+
+        match move_value {
+            MoveValue::Bool(value) => Ok(value),
+            _ => Err(VisualSignError::DecodeError(
+                "Expected bool value type".to_string(),
+            )),
+        }
+    }
+}
+
 impl FromLeBytes for u8 {
     fn from_le_bytes(bytes: &[u8]) -> Option<Self> {
         Some(bytes[0])
