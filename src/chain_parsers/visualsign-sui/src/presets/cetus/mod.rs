@@ -983,7 +983,7 @@ mod tests {
 
     use visualsign::test_utils::{
         assert_has_field, assert_has_field_with_context, assert_has_field_with_value,
-        assert_has_field_with_value_with_context,
+        assert_has_field_with_value_with_context, assert_has_fields_with_values_with_context,
     };
 
     const CETUS_SWAP_LABEL: &str = "CetusAMM Swap Command";
@@ -1044,9 +1044,16 @@ mod tests {
         use std::collections::HashMap;
 
         #[derive(Debug, Deserialize)]
+        #[serde(untagged)]
+        enum OneOrMany {
+            One(String),
+            Many(Vec<String>),
+        }
+
+        #[derive(Debug, Deserialize)]
         struct Operation {
             data: String,
-            asserts: HashMap<String, String>,
+            asserts: HashMap<String, OneOrMany>,
         }
 
         #[derive(Debug, Deserialize)]
@@ -1078,12 +1085,20 @@ mod tests {
 
                 assert_has_field_with_context(&payload, label, &test_context);
                 for (field, expected) in op.asserts.iter() {
-                    assert_has_field_with_value_with_context(
-                        &payload,
-                        field,
-                        expected,
-                        &test_context,
-                    );
+                    match expected {
+                        OneOrMany::One(value) => assert_has_field_with_value_with_context(
+                            &payload,
+                            field,
+                            value.as_str(),
+                            &test_context,
+                        ),
+                        OneOrMany::Many(values) => assert_has_fields_with_values_with_context(
+                            &payload,
+                            field,
+                            values.as_slice(),
+                            &test_context,
+                        ),
+                    }
                 }
             }
         }

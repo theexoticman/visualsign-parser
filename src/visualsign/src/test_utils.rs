@@ -11,14 +11,15 @@ pub fn assert_has_field_with_context(payload: &SignablePayload, label: &str, con
 }
 
 pub fn assert_has_field_with_value(payload: &SignablePayload, label: &str, expected_value: &str) {
-    let (found, value) = check_signable_payload(payload, label);
+    let (found, values) = check_signable_payload(payload, label);
     assert!(
         found,
         "Should have a {label} field with value {expected_value}"
     );
-    assert_eq!(
-        value, expected_value,
-        "Should have a {label} field with value {expected_value}. Actual value: {value}"
+    assert!(
+        values.contains(&expected_value.to_string()),
+        "Should have a {label} field with value {expected_value}. Actual values: {:?}",
+        values
     );
 }
 
@@ -28,104 +29,154 @@ pub fn assert_has_field_with_value_with_context(
     expected_value: &str,
     context: &str,
 ) {
-    let (found, value) = check_signable_payload(payload, label);
+    let (found, values) = check_signable_payload(payload, label);
     assert!(
         found,
         "Should have a {label} field with value {expected_value} in {context}"
     );
-    assert_eq!(
-        value, expected_value,
-        "Should have a {label} field with value {expected_value}. Actual value: {value} in {context}"
+    assert!(
+        values.iter().all(|x| x.eq(expected_value)),
+        "Should have a {label} field with value {expected_value}. Actual values: {:?} (use `assert_has_fields_with_values_with_context` if there could be different expected values) in {context}",
+        values
     );
 }
 
-pub fn check_signable_payload(payload: &SignablePayload, label: &str) -> (bool, String) {
-    payload
-        .fields
-        .iter()
-        .map(|field| check_signable_payload_field(field, label))
-        .find(|x| x.0)
-        .unwrap_or((false, "".to_string()))
+pub fn assert_has_fields_with_values_with_context(
+    payload: &SignablePayload,
+    label: &str,
+    expected_values: &[String],
+    context: &str,
+) {
+    let (found, values) = check_signable_payload(payload, label);
+    assert!(found, "Should have at least one {label} field in {context}");
+
+    let expected: Vec<String> = expected_values.iter().map(|s| s.to_string()).collect();
+    assert_eq!(
+        values.len(),
+        expected.len(),
+        "Should have {} {label} field(s) in {context}. Actual values: {:?}",
+        expected.len(),
+        values
+    );
+
+    assert_eq!(
+        values, expected,
+        "Mismatch in {label} field values in {context}. Expected: {:?}, Actual: {:?}",
+        expected, values
+    );
 }
 
-pub fn check_signable_payload_field(field: &SignablePayloadField, label: &str) -> (bool, String) {
+pub fn check_signable_payload(payload: &SignablePayload, label: &str) -> (bool, Vec<String>) {
+    let mut all_values: Vec<String> = Vec::new();
+
+    for field in payload.fields.iter() {
+        let (_, mut values) = check_signable_payload_field(field, label);
+        all_values.append(&mut values);
+    }
+
+    (!all_values.is_empty(), all_values)
+}
+
+pub fn check_signable_payload_field(
+    field: &SignablePayloadField,
+    label: &str,
+) -> (bool, Vec<String>) {
     match field {
         SignablePayloadField::Text { common, text } => {
-            (common.label == label, text.text.to_string())
+            if common.label == label {
+                (true, vec![text.text.to_string()])
+            } else {
+                (false, Vec::new())
+            }
         }
         SignablePayloadField::TextV2 { common, text_v2 } => {
-            (common.label == label, text_v2.text.to_string())
+            if common.label == label {
+                (true, vec![text_v2.text.to_string()])
+            } else {
+                (false, Vec::new())
+            }
         }
         SignablePayloadField::Address { common, address } => {
-            (common.label == label, address.address.to_string())
+            if common.label == label {
+                (true, vec![address.address.to_string()])
+            } else {
+                (false, Vec::new())
+            }
         }
         SignablePayloadField::AddressV2 { common, address_v2 } => {
-            (common.label == label, address_v2.address.to_string())
+            if common.label == label {
+                (true, vec![address_v2.address.to_string()])
+            } else {
+                (false, Vec::new())
+            }
         }
         SignablePayloadField::Number { common, number } => {
-            (common.label == label, number.number.to_string())
+            if common.label == label {
+                (true, vec![number.number.to_string()])
+            } else {
+                (false, Vec::new())
+            }
         }
         SignablePayloadField::Amount { common, amount } => {
-            (common.label == label, amount.amount.to_string())
+            if common.label == label {
+                (true, vec![amount.amount.to_string()])
+            } else {
+                (false, Vec::new())
+            }
         }
         SignablePayloadField::AmountV2 { common, amount_v2 } => {
-            (common.label == label, amount_v2.amount.to_string())
+            if common.label == label {
+                (true, vec![amount_v2.amount.to_string()])
+            } else {
+                (false, Vec::new())
+            }
         }
         SignablePayloadField::PreviewLayout {
             preview_layout,
             common,
         } => {
+            let mut values: Vec<String> = Vec::new();
+
             if common.label == label {
-                return (true, common.fallback_text.to_string());
+                values.push(common.fallback_text.to_string());
             }
 
-            let condensed_check: (bool, String) = if let Some(condensed) =
-                preview_layout.condensed.as_ref()
-            {
-                condensed
-                    .fields
-                    .iter()
-                    .map(|field| check_signable_payload_field(&field.signable_payload_field, label))
-                    .find(|x| x.0)
-                    .unwrap_or((false, "".to_string()))
-            } else {
-                (false, "".to_string())
-            };
-
-            let expanded_check: (bool, String) = if let Some(expanded) =
-                preview_layout.expanded.as_ref()
-            {
-                expanded
-                    .fields
-                    .iter()
-                    .map(|field| check_signable_payload_field(&field.signable_payload_field, label))
-                    .find(|x| x.0)
-                    .unwrap_or((false, "".to_string()))
-            } else {
-                (false, "".to_string())
-            };
-
-            if let (true, value) = condensed_check {
-                return (true, value);
+            if let Some(condensed) = preview_layout.condensed.as_ref() {
+                for field in condensed.fields.iter() {
+                    let (_, mut inner_values) =
+                        check_signable_payload_field(&field.signable_payload_field, label);
+                    values.append(&mut inner_values);
+                }
             }
 
-            expanded_check
+            if let Some(expanded) = preview_layout.expanded.as_ref() {
+                for field in expanded.fields.iter() {
+                    let (_, mut inner_values) =
+                        check_signable_payload_field(&field.signable_payload_field, label);
+                    values.append(&mut inner_values);
+                }
+            }
+
+            (!values.is_empty(), values)
         }
         SignablePayloadField::ListLayout {
             list_layout,
             common,
         } => {
+            let mut values: Vec<String> = Vec::new();
+
             if common.label == label {
-                return (true, common.fallback_text.to_string());
+                values.push(common.fallback_text.to_string());
             }
 
-            list_layout
-                .fields
-                .iter()
-                .map(|field| check_signable_payload_field(&field.signable_payload_field, label))
-                .find(|x| x.0)
-                .unwrap_or((false, "".to_string()))
+            for field in list_layout.fields.iter() {
+                let (_, mut inner_values) =
+                    check_signable_payload_field(&field.signable_payload_field, label);
+                values.append(&mut inner_values);
+            }
+
+            (!values.is_empty(), values)
         }
-        _ => (false, "".to_string()),
+        _ => (false, Vec::new()),
     }
 }
