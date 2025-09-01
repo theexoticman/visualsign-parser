@@ -1,13 +1,12 @@
 mod config;
 
 use config::{
-    AddLiquidityByFixCoinIndexes, CETUS_CONFIG, CetusModules, ClosePositionIndexes, Config,
-    OpenPositionWithLiquidityByFixCoinIndexes, OpenPositionWithLiquidityWithAllIndexes,
-    PoolScriptClosePositionIndexes, PoolScriptFunctions, PoolScriptRemoveLiquidityIndexes,
-    PoolScriptSwapA2BIndexes, PoolScriptSwapA2BWithPartnerIndexes, PoolScriptSwapB2AIndexes,
-    PoolScriptSwapB2AWithPartnerIndexes, PoolScriptV2Functions, RemoveLiquidityIndexes,
-    RouterCheckCoinThresholdIndexes, RouterFunctions, RouterSwapIndexes, SwapA2BIndexes,
-    SwapB2AIndexes, UtilsFunctions,
+    AddLiquidityByFixCoinIndexes, CETUS_CONFIG, CetusModules, Config,
+    OpenPositionWithLiquidityByFixCoinIndexes, PoolScriptClosePositionIndexes, PoolScriptFunctions,
+    PoolScriptRemoveLiquidityIndexes, PoolScriptSwapA2BIndexes,
+    PoolScriptSwapA2BWithPartnerIndexes, PoolScriptSwapB2AIndexes,
+    PoolScriptSwapB2AWithPartnerIndexes, PoolScriptV2Functions, RouterCheckCoinThresholdIndexes,
+    RouterFunctions, RouterSwapIndexes, SwapA2BIndexes, SwapB2AIndexes, UtilsFunctions,
 };
 
 use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext, VisualizerKind};
@@ -15,7 +14,9 @@ use crate::utils::{SuiCoin, get_tx_type_arg, truncate_address};
 
 use sui_json_rpc_types::{SuiCommand, SuiProgrammableMoveCall};
 
-use crate::presets::cetus::config::{SwapA2BWithPartnerIndexes, SwapB2AWithPartnerIndexes};
+use crate::presets::cetus::config::{
+    PoolScriptV3Functions, SwapA2BWithPartnerIndexes, SwapB2AWithPartnerIndexes,
+};
 use visualsign::{
     AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldCommon,
     SignablePayloadFieldListLayout, SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
@@ -38,6 +39,25 @@ impl CommandVisualizer for CetusVisualizer {
         };
 
         match pwc.module.as_str().try_into()? {
+            CetusModules::PoolScript => match pwc.function.as_str().try_into()? {
+                PoolScriptFunctions::SwapA2B => self.handle_swap_pool_script(true, context, pwc),
+                PoolScriptFunctions::SwapB2A => self.handle_swap_pool_script(false, context, pwc),
+                PoolScriptFunctions::SwapA2BWithPartner => {
+                    self.handle_swap_pool_script_with_partner(true, context, pwc)
+                }
+                PoolScriptFunctions::SwapB2AWithPartner => {
+                    self.handle_swap_pool_script_with_partner(false, context, pwc)
+                }
+                PoolScriptFunctions::ClosePosition => {
+                    self.handle_close_position_pool_script(context, pwc)
+                }
+                PoolScriptFunctions::RemoveLiquidity => {
+                    self.handle_remove_liquidity_pool_script(context, pwc)
+                }
+                PoolScriptFunctions::OpenPositionWithLiquidityWithAll => {
+                    self.handle_pool_script_liquidity_ops(context, pwc)
+                }
+            },
             CetusModules::PoolScriptV2 => match pwc.function.as_str().try_into()? {
                 PoolScriptV2Functions::SwapB2A => self.handle_swap_v2(false, context, pwc),
                 PoolScriptV2Functions::SwapA2B => self.handle_swap_v2(true, context, pwc),
@@ -49,18 +69,11 @@ impl CommandVisualizer for CetusVisualizer {
                 }
                 PoolScriptV2Functions::CollectReward => self.handle_collect_reward(context, pwc),
                 PoolScriptV2Functions::CollectFee => self.handle_collect_fee(context, pwc),
-                PoolScriptV2Functions::ClosePosition => self.handle_close_position_v2(context, pwc),
                 PoolScriptV2Functions::OpenPositionWithLiquidityByFixCoin => {
                     self.handle_open_position_with_liquidity_by_fix_coin_v2(context, pwc)
                 }
-                PoolScriptV2Functions::OpenPositionWithLiquidityWithAll => {
-                    self.handle_open_position_with_liquidity_with_all_v2(context, pwc)
-                }
                 PoolScriptV2Functions::AddLiquidityByFixCoin => {
                     self.handle_add_liquidity_by_fix_coin_v2(context, pwc)
-                }
-                PoolScriptV2Functions::RemoveLiquidity => {
-                    self.handle_remove_liquidity_v2(context, pwc)
                 }
             },
             CetusModules::Router => match pwc.function.as_str().try_into()? {
@@ -69,36 +82,14 @@ impl CommandVisualizer for CetusVisualizer {
                     self.handle_check_coin_threshold(context, pwc)
                 }
             },
-            CetusModules::PoolScript => match pwc.function.as_str().try_into()? {
-                PoolScriptFunctions::SwapA2B => self.handle_swap_pool_script(true, context, pwc),
-                PoolScriptFunctions::SwapB2A => self.handle_swap_pool_script(false, context, pwc),
-                PoolScriptFunctions::SwapA2BWithPartner => {
-                    self.handle_swap_pool_script_with_partner(true, context, pwc)
-                }
-                PoolScriptFunctions::SwapB2AWithPartner => {
-                    self.handle_swap_pool_script_with_partner(false, context, pwc)
-                }
-                PoolScriptFunctions::CollectReward => self.handle_collect_reward(context, pwc),
-                PoolScriptFunctions::CollectFee => self.handle_collect_fee(context, pwc),
-                PoolScriptFunctions::ClosePosition => {
-                    self.handle_close_position_pool_script(context, pwc)
-                }
-                PoolScriptFunctions::RemoveLiquidity => {
-                    self.handle_remove_liquidity_pool_script(context, pwc)
-                }
-                PoolScriptFunctions::AddLiquidityFixCoinOnlyA
-                | PoolScriptFunctions::AddLiquidityFixCoinOnlyB
-                | PoolScriptFunctions::AddLiquidityFixCoinWithAll
-                | PoolScriptFunctions::OpenPositionWithLiquidityOnlyA
-                | PoolScriptFunctions::OpenPositionWithLiquidityOnlyB
-                | PoolScriptFunctions::OpenPositionWithLiquidityWithAll => {
-                    self.handle_pool_script_liquidity_ops(context, pwc)
-                }
-            },
             CetusModules::Utils => match pwc.function.as_str().try_into()? {
                 UtilsFunctions::TransferCoinToSender => {
                     self.handle_transfer_coin_to_sender(context, pwc)
                 }
+            },
+            CetusModules::PoolScriptV3 => match pwc.function.as_str().try_into()? {
+                PoolScriptV3Functions::CollectFee => self.handle_collect_fee(context, pwc),
+                PoolScriptV3Functions::CollectReward => self.handle_collect_reward(context, pwc),
             },
         }
     }
@@ -507,19 +498,6 @@ impl CetusVisualizer {
         }])
     }
 
-    fn handle_close_position_v2(
-        &self,
-        context: &VisualizerContext,
-        pwc: &SuiProgrammableMoveCall,
-    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let coin_a: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
-        let coin_b: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
-        let min_a = ClosePositionIndexes::get_min_amount_a(context.inputs(), &pwc.arguments)?;
-        let min_b = ClosePositionIndexes::get_min_amount_b(context.inputs(), &pwc.arguments)?;
-
-        self.render_close_position(context, coin_a, coin_b, min_a, min_b)
-    }
-
     fn handle_close_position_pool_script(
         &self,
         context: &VisualizerContext,
@@ -594,20 +572,6 @@ impl CetusVisualizer {
                 },
             },
         }])
-    }
-
-    fn handle_remove_liquidity_v2(
-        &self,
-        context: &VisualizerContext,
-        pwc: &SuiProgrammableMoveCall,
-    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let coin_a: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
-        let coin_b: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
-        let liquidity = RemoveLiquidityIndexes::get_liquidity(context.inputs(), &pwc.arguments)?;
-        let min_a = RemoveLiquidityIndexes::get_min_amount_a(context.inputs(), &pwc.arguments)?;
-        let min_b = RemoveLiquidityIndexes::get_min_amount_b(context.inputs(), &pwc.arguments)?;
-
-        self.render_remove_liquidity(context, coin_a, coin_b, liquidity, min_a, min_b)
     }
 
     fn handle_remove_liquidity_pool_script(
@@ -775,31 +739,6 @@ impl CetusVisualizer {
             &pwc.arguments,
         )?;
         let is_fix_a = OpenPositionWithLiquidityByFixCoinIndexes::get_is_fix_a(
-            context.inputs(),
-            &pwc.arguments,
-        )?;
-
-        self.render_open_position_with_liquidity(
-            context, coin_a, coin_b, amount_a, amount_b, is_fix_a,
-        )
-    }
-
-    fn handle_open_position_with_liquidity_with_all_v2(
-        &self,
-        context: &VisualizerContext,
-        pwc: &SuiProgrammableMoveCall,
-    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let coin_a: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
-        let coin_b: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
-        let amount_a = OpenPositionWithLiquidityWithAllIndexes::get_amount_a(
-            context.inputs(),
-            &pwc.arguments,
-        )?;
-        let amount_b = OpenPositionWithLiquidityWithAllIndexes::get_amount_b(
-            context.inputs(),
-            &pwc.arguments,
-        )?;
-        let is_fix_a = OpenPositionWithLiquidityWithAllIndexes::get_is_fix_a(
             context.inputs(),
             &pwc.arguments,
         )?;
@@ -1073,6 +1012,7 @@ mod tests {
         let data: AggregatedTestData =
             serde_json::from_str(json_str).expect("invalid aggregated_test_data.json");
 
+        // TODO: use module during visualization (in details)
         for (_module_name, module) in data.modules.iter() {
             for (name, category) in module.iter() {
                 let label = &category.label;
