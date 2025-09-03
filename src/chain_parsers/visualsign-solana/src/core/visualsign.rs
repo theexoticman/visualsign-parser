@@ -604,7 +604,7 @@ fn create_address_lookup_table_field(
     // Use a simple ListLayout instead of nested PreviewLayout
     Ok(SignablePayloadField::ListLayout {
         common: SignablePayloadFieldCommon {
-            fallback_text: fallback_text,
+            fallback_text,
             label: "Address Lookup Tables".to_string(),
         },
         list_layout: SignablePayloadFieldListLayout {
