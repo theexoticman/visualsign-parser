@@ -44,13 +44,12 @@ pub fn assert_has_field_with_value_with_context(
 pub fn assert_has_fields_with_values_with_context(
     payload: &SignablePayload,
     label: &str,
-    expected_values: &[String],
+    expected: &[String],
     context: &str,
 ) {
     let (found, values) = check_signable_payload(payload, label);
     assert!(found, "Should have at least one {label} field in {context}");
 
-    let expected: Vec<String> = expected_values.iter().map(|s| s.to_string()).collect();
     assert_eq!(
         values.len(),
         expected.len(),

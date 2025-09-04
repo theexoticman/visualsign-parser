@@ -45,6 +45,10 @@ pub trait FromLeBytes: Sized {
 
 impl FromLeBytes for bool {
     fn from_le_bytes(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.is_empty() {
+            return Err("bytes array is empty in FromLeBytes".to_string());
+        }
+
         match bytes[0] {
             0 => Ok(false),
             1 => Ok(true),
@@ -80,7 +84,11 @@ impl FromLeBytes for bool {
 
 impl FromLeBytes for u8 {
     fn from_le_bytes(bytes: &[u8]) -> Result<Self, String> {
-        Ok(bytes[0])
+        Ok(u8::from_le_bytes(
+            bytes
+                .try_into()
+                .map_err(|e| format!("Invalid u8 value: {}", e))?,
+        ))
     }
 
     fn from_move_value(value: &SuiPureValue) -> Result<Self, VisualSignError> {
