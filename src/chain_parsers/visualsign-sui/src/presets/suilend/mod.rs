@@ -103,211 +103,6 @@ fn get_repay_amount(
 }
 
 impl SuilendVisualizer {
-    fn handle_repay(
-        &self,
-        context: &VisualizerContext,
-        pwc: &SuiProgrammableMoveCall,
-    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
-        let package: SuiPackage = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
-        let reserve_index =
-            RefreshReservePriceIndexes::get_reserve_array_index(context.inputs(), &pwc.arguments)
-                .ok();
-        let amount = get_repay_amount(context.commands(), context.inputs(), &pwc.arguments)
-            .unwrap_or_default();
-
-        let (title_text, amount_str, amount_field) = match amount {
-            Some(amount) => (
-                format!("Suilend: Repay {} {}", amount, coin.symbol()),
-                amount.to_string(),
-                create_amount_field("Amount", &amount.to_string(), coin.symbol())?,
-            ),
-            None => (
-                format!("Suilend: Repay {} {}", "N/A", coin.symbol()),
-                "N/A".to_string(),
-                create_text_field("Amount", "N/A")?,
-            ),
-        };
-
-        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
-
-        let mut summary = format!("Repay {} {} via {}", amount_str, coin.symbol(), package);
-        if let Some(idx) = reserve_index {
-            summary.push_str(&format!(" (reserve #{})", idx));
-        }
-
-        let condensed = SignablePayloadFieldListLayout {
-            fields: vec![create_text_field("Summary", &summary)?],
-        };
-
-        let mut expanded_fields = vec![
-            create_address_field(
-                "From",
-                &context.sender().to_string(),
-                None,
-                None,
-                None,
-                None,
-            )?,
-            create_text_field("Package", &package.to_string())?,
-            create_text_field("Coin", &coin.to_string())?,
-            amount_field,
-        ];
-        if let Some(idx) = reserve_index {
-            expanded_fields.push(create_text_field("Reserve Index", &idx.to_string())?);
-        }
-
-        let expanded = SignablePayloadFieldListLayout {
-            fields: expanded_fields,
-        };
-
-        let preview_layout = SignablePayloadFieldPreviewLayout {
-            title: Some(SignablePayloadFieldTextV2 {
-                text: title_text.clone(),
-            }),
-            subtitle: Some(SignablePayloadFieldTextV2 {
-                text: subtitle_text,
-            }),
-            condensed: Some(condensed),
-            expanded: Some(expanded),
-        };
-
-        Ok(vec![AnnotatedPayloadField {
-            static_annotation: None,
-            dynamic_annotation: None,
-            signable_payload_field: SignablePayloadField::PreviewLayout {
-                common: SignablePayloadFieldCommon {
-                    fallback_text: title_text,
-                    label: "Suilend Repay Command".to_string(),
-                },
-                preview_layout,
-            },
-        }])
-    }
-
-    fn handle_unstake_sui_from_staker(
-        &self,
-        context: &VisualizerContext,
-        pwc: &SuiProgrammableMoveCall,
-    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let package: SuiPackage = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
-        // Uses SUI reserve index at arg 1
-        let sui_reserve_index =
-            RebalanceStakerIndexes::get_sui_reserve_array_index(context.inputs(), &pwc.arguments)?;
-
-        let title_text = "Suilend: Unstake SUI from Staker".to_string();
-        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
-
-        let condensed = SignablePayloadFieldListLayout {
-            fields: vec![create_text_field(
-                "Summary",
-                &format!(
-                    "Unstake SUI from staker (reserve #{}) via {}",
-                    sui_reserve_index, package
-                ),
-            )?],
-        };
-        let expanded = SignablePayloadFieldListLayout {
-            fields: vec![
-                create_address_field(
-                    "From",
-                    &context.sender().to_string(),
-                    None,
-                    None,
-                    None,
-                    None,
-                )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("SUI Reserve Index", &sui_reserve_index.to_string())?,
-            ],
-        };
-        let preview_layout = SignablePayloadFieldPreviewLayout {
-            title: Some(SignablePayloadFieldTextV2 {
-                text: title_text.clone(),
-            }),
-            subtitle: Some(SignablePayloadFieldTextV2 {
-                text: subtitle_text,
-            }),
-            condensed: Some(condensed),
-            expanded: Some(expanded),
-        };
-        Ok(vec![AnnotatedPayloadField {
-            static_annotation: None,
-            dynamic_annotation: None,
-            signable_payload_field: SignablePayloadField::PreviewLayout {
-                common: SignablePayloadFieldCommon {
-                    fallback_text: title_text,
-                    label: "Suilend Unstake SUI".to_string(),
-                },
-                preview_layout,
-            },
-        }])
-    }
-
-    fn handle_withdraw_ctokens(
-        &self,
-        context: &VisualizerContext,
-        pwc: &SuiProgrammableMoveCall,
-    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
-        let package: SuiPackage = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
-        let reserve_index =
-            WithdrawCTokensIndexes::get_reserve_array_index(context.inputs(), &pwc.arguments)?;
-        let amount = WithdrawCTokensIndexes::get_amount(context.inputs(), &pwc.arguments)?;
-
-        let title_text = format!("Suilend: Withdraw cTokens ({})", coin.symbol());
-        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
-
-        let condensed = SignablePayloadFieldListLayout {
-            fields: vec![create_text_field(
-                "Summary",
-                &format!(
-                    "Withdraw {} cTokens ({}) from reserve #{} via {}",
-                    amount,
-                    coin.symbol(),
-                    reserve_index,
-                    package
-                ),
-            )?],
-        };
-        let expanded = SignablePayloadFieldListLayout {
-            fields: vec![
-                create_address_field(
-                    "From",
-                    &context.sender().to_string(),
-                    None,
-                    None,
-                    None,
-                    None,
-                )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("CToken Coin", &coin.to_string())?,
-                create_amount_field("Amount", &amount.to_string(), coin.symbol())?,
-                create_text_field("Reserve Index", &reserve_index.to_string())?,
-            ],
-        };
-        let preview_layout = SignablePayloadFieldPreviewLayout {
-            title: Some(SignablePayloadFieldTextV2 {
-                text: title_text.clone(),
-            }),
-            subtitle: Some(SignablePayloadFieldTextV2 {
-                text: subtitle_text,
-            }),
-            condensed: Some(condensed),
-            expanded: Some(expanded),
-        };
-        Ok(vec![AnnotatedPayloadField {
-            static_annotation: None,
-            dynamic_annotation: None,
-            signable_payload_field: SignablePayloadField::PreviewLayout {
-                common: SignablePayloadFieldCommon {
-                    fallback_text: title_text,
-                    label: "Suilend Withdraw cTokens".to_string(),
-                },
-                preview_layout,
-            },
-        }])
-    }
     fn handle_borrow_request(
         &self,
         context: &VisualizerContext,
@@ -338,17 +133,17 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("Coin", &coin.to_string())?,
-                create_text_field("Reserve Index", &reserve_index.to_string())?,
-                create_amount_field("Amount", &amount.to_string(), coin.symbol())?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field("Borrowed Coin", &coin.to_string())?,
+                create_text_field("Borrowed Reserve Index", &reserve_index.to_string())?,
+                create_amount_field("Borrowed Amount", &amount.to_string(), coin.symbol())?,
             ],
         };
 
@@ -409,18 +204,18 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
                 create_text_field("Reward Coin", &reward_coin.to_string())?,
-                create_text_field("Reserve Index", &reserve_id.to_string())?,
-                create_text_field("Reward Index", &reward_index.to_string())?,
-                create_text_field("Reward Side", reward_side)?,
+                create_text_field("Claim Rewards Reserve Index", &reserve_id.to_string())?,
+                create_text_field("Claim Reward Index", &reward_index.to_string())?,
+                create_text_field("Claim Reward Side", reward_side)?,
             ],
         };
 
@@ -483,15 +278,15 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("Coin", &coin.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field("Claim and Deposit Coin", &coin.to_string())?,
                 create_text_field("Reward Side", reward_side)?,
                 create_text_field("Reward Reserve Index", &reward_reserve_id.to_string())?,
                 create_text_field("Reward Index", &reward_index.to_string())?,
@@ -541,14 +336,14 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
             ],
         };
         let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -603,16 +398,16 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
                 create_text_field("CToken (underlying)", &coin.to_string())?,
-                create_text_field("Reserve Index", &reserve_index.to_string())?,
+                create_text_field("Deposit cTokens Reserve Index", &reserve_index.to_string())?,
             ],
         };
         let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -669,16 +464,19 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("Coin", &coin.to_string())?,
-                create_text_field("Reserve Index", &reserve_index.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field("Deposit Liquidity and Mint cTokens Coin", &coin.to_string())?,
+                create_text_field(
+                    "Deposit Liquidity and Mint cTokens Reserve Index",
+                    &reserve_index.to_string(),
+                )?,
             ],
         };
         let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -729,16 +527,19 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("Coin", &coin.to_string())?,
-                create_text_field("Reserve Index", &reserve_index.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field("Fulfill Liquidity Coin", &coin.to_string())?,
+                create_text_field(
+                    "Fulfill Liquidity Reserve Index",
+                    &reserve_index.to_string(),
+                )?,
             ],
         };
         let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -786,15 +587,18 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("SUI Reserve Index", &sui_reserve_index.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field(
+                    "Rebalance Staker SUI Reserve Index",
+                    &sui_reserve_index.to_string(),
+                )?,
             ],
         };
         let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -851,16 +655,22 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("Coin", &coin.to_string())?,
-                create_text_field("Reserve Index", &reserve_index.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field(
+                    "Redeem cTokens and Withdraw Liquidity Coin",
+                    &coin.to_string(),
+                )?,
+                create_text_field(
+                    "Redeem cTokens and Withdraw Liquidity Reserve Index",
+                    &reserve_index.to_string(),
+                )?,
             ],
         };
         let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -908,15 +718,15 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
-                    "From",
+                    "User Address",
                     &context.sender().to_string(),
                     None,
                     None,
                     None,
                     None,
                 )?,
-                create_text_field("Package", &package.to_string())?,
-                create_text_field("Reserve Index", &reserve_index.to_string())?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field("Refresh Price Reserve Index", &reserve_index.to_string())?,
             ],
         };
         let preview_layout = SignablePayloadFieldPreviewLayout {
@@ -941,61 +751,291 @@ impl SuilendVisualizer {
             },
         }])
     }
+
+    fn handle_repay(
+        &self,
+        context: &VisualizerContext,
+        pwc: &SuiProgrammableMoveCall,
+    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
+        let coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
+        let package: SuiPackage = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
+        let reserve_index =
+            RefreshReservePriceIndexes::get_reserve_array_index(context.inputs(), &pwc.arguments)?;
+        let amount = get_repay_amount(context.commands(), context.inputs(), &pwc.arguments)
+            .unwrap_or_default();
+
+        let (title_text, amount_str, amount_field) = match amount {
+            Some(amount) => (
+                format!("Suilend: Repay {} {}", amount, coin.symbol()),
+                amount.to_string(),
+                create_amount_field("Repay Amount", &amount.to_string(), coin.symbol())?,
+            ),
+            None => (
+                format!("Suilend: Repay {} {}", "N/A", coin.symbol()),
+                "N/A".to_string(),
+                create_text_field("Repay Amount", "N/A")?,
+            ),
+        };
+
+        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
+
+        let mut summary = format!("Repay {} {} via {}", amount_str, coin.symbol(), package);
+        summary.push_str(&format!(" (reserve #{})", reserve_index));
+
+        let condensed = SignablePayloadFieldListLayout {
+            fields: vec![create_text_field("Summary", &summary)?],
+        };
+
+        let expanded_fields = vec![
+            create_address_field(
+                "User Address",
+                &context.sender().to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_text_field("Pool Address", &package.to_string())?,
+            create_text_field("Repay Coin", &coin.to_string())?,
+            amount_field,
+            create_text_field("Repay Reserve Index", &reserve_index.to_string())?,
+        ];
+
+        let expanded = SignablePayloadFieldListLayout {
+            fields: expanded_fields,
+        };
+
+        let preview_layout = SignablePayloadFieldPreviewLayout {
+            title: Some(SignablePayloadFieldTextV2 {
+                text: title_text.clone(),
+            }),
+            subtitle: Some(SignablePayloadFieldTextV2 {
+                text: subtitle_text,
+            }),
+            condensed: Some(condensed),
+            expanded: Some(expanded),
+        };
+
+        Ok(vec![AnnotatedPayloadField {
+            static_annotation: None,
+            dynamic_annotation: None,
+            signable_payload_field: SignablePayloadField::PreviewLayout {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: title_text,
+                    label: "Suilend Repay Command".to_string(),
+                },
+                preview_layout,
+            },
+        }])
+    }
+
+    fn handle_unstake_sui_from_staker(
+        &self,
+        context: &VisualizerContext,
+        pwc: &SuiProgrammableMoveCall,
+    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
+        let package: SuiPackage = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
+        // Uses SUI reserve index at arg 1
+        let sui_reserve_index =
+            RebalanceStakerIndexes::get_sui_reserve_array_index(context.inputs(), &pwc.arguments)?;
+
+        let title_text = "Suilend: Unstake SUI from Staker".to_string();
+        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
+
+        let condensed = SignablePayloadFieldListLayout {
+            fields: vec![create_text_field(
+                "Summary",
+                &format!(
+                    "Unstake SUI from staker (reserve #{}) via {}",
+                    sui_reserve_index, package
+                ),
+            )?],
+        };
+        let expanded = SignablePayloadFieldListLayout {
+            fields: vec![
+                create_address_field(
+                    "User Address",
+                    &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field(
+                    "Unstake SUI from Staker Reserve Index",
+                    &sui_reserve_index.to_string(),
+                )?,
+            ],
+        };
+        let preview_layout = SignablePayloadFieldPreviewLayout {
+            title: Some(SignablePayloadFieldTextV2 {
+                text: title_text.clone(),
+            }),
+            subtitle: Some(SignablePayloadFieldTextV2 {
+                text: subtitle_text,
+            }),
+            condensed: Some(condensed),
+            expanded: Some(expanded),
+        };
+        Ok(vec![AnnotatedPayloadField {
+            static_annotation: None,
+            dynamic_annotation: None,
+            signable_payload_field: SignablePayloadField::PreviewLayout {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: title_text,
+                    label: "Suilend Unstake SUI".to_string(),
+                },
+                preview_layout,
+            },
+        }])
+    }
+
+    fn handle_withdraw_ctokens(
+        &self,
+        context: &VisualizerContext,
+        pwc: &SuiProgrammableMoveCall,
+    ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
+        let coin: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
+        let package: SuiPackage = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
+        let reserve_index =
+            WithdrawCTokensIndexes::get_reserve_array_index(context.inputs(), &pwc.arguments)?;
+        let amount = WithdrawCTokensIndexes::get_amount(context.inputs(), &pwc.arguments)?;
+
+        let title_text = format!("Suilend: Withdraw cTokens ({})", coin.symbol());
+        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
+
+        let condensed = SignablePayloadFieldListLayout {
+            fields: vec![create_text_field(
+                "Summary",
+                &format!(
+                    "Withdraw {} cTokens ({}) from reserve #{} via {}",
+                    amount,
+                    coin.symbol(),
+                    reserve_index,
+                    package
+                ),
+            )?],
+        };
+        let expanded = SignablePayloadFieldListLayout {
+            fields: vec![
+                create_address_field(
+                    "User Address",
+                    &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_text_field("Pool Address", &package.to_string())?,
+                create_text_field("Withdraw cTokens Coin", &coin.to_string())?,
+                create_amount_field(
+                    "Withdraw cTokens Amount",
+                    &amount.to_string(),
+                    coin.symbol(),
+                )?,
+                create_text_field("Withdraw cTokens Reserve Index", &reserve_index.to_string())?,
+            ],
+        };
+        let preview_layout = SignablePayloadFieldPreviewLayout {
+            title: Some(SignablePayloadFieldTextV2 {
+                text: title_text.clone(),
+            }),
+            subtitle: Some(SignablePayloadFieldTextV2 {
+                text: subtitle_text,
+            }),
+            condensed: Some(condensed),
+            expanded: Some(expanded),
+        };
+        Ok(vec![AnnotatedPayloadField {
+            static_annotation: None,
+            dynamic_annotation: None,
+            signable_payload_field: SignablePayloadField::PreviewLayout {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: title_text,
+                    label: "Suilend Withdraw cTokens".to_string(),
+                },
+                preview_layout,
+            },
+        }])
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::payload_from_b64;
+    use crate::utils::payload_from_b64_with_context;
 
-    use visualsign::test_utils::assert_has_field;
-
-    const SUILEND_REPAY_LABEL: &str = "Suilend Repay Command";
-
-    #[test]
-    #[ignore]
-    fn test_suilend_repay_commands() {
-        // https://suivision.xyz/txblock/FTckS194eV3LBGCfcqiW8LxD7E3Nif5MNWqZa21jE5fn
-        let test_data = "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";
-
-        let payload = payload_from_b64(test_data);
-        assert_has_field(&payload, SUILEND_REPAY_LABEL);
-    }
+    use visualsign::test_utils::{
+        assert_has_field_with_context, assert_has_field_with_value_with_context,
+        assert_has_fields_with_values_with_context,
+    };
 
     #[test]
-    #[ignore]
-    fn test_visualizer_kind_for_suilend_repay() {
-        // https://suivision.xyz/txblock/FTckS194eV3LBGCfcqiW8LxD7E3Nif5MNWqZa21jE5fn
-        let _test_data = "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";
+    fn test_suilend_aggregated() {
+        use serde::Deserialize;
+        use std::collections::HashMap;
 
-        // let block_data = crate::core::commands::tests::block_data_from_b64(test_data);
-        // let (tx_commands, tx_inputs) = match block_data.transaction() {
-        //     SuiTransactionBlockKind::ProgrammableTransaction(tx) => (&tx.commands, &tx.inputs),
-        //     _ => panic!("expected programmable transaction"),
-        // };
-        //
-        // let visualizer = crate::presets::suilend::SuilendVisualizer;
-        // let results: Vec<_> = tx_commands
-        //     .iter()
-        //     .enumerate()
-        //     .filter_map(|(command_index, _)| {
-        //         visualize_with_any(
-        //             &[&visualizer],
-        //             &VisualizerContext::new(
-        //                 block_data.sender(),
-        //                 command_index,
-        //                 tx_commands,
-        //                 tx_inputs,
-        //             ),
-        //         )
-        //     })
-        //     .map(|res| res.unwrap())
-        //     .collect();
-        //
-        // assert!(
-        //     results
-        //         .iter()
-        //         .any(|r| matches!(r.kind, VisualizerKind::Lending(name) if name == "Suilend")),
-        //     "should contain a suilend lending visualization"
-        // );
+        #[derive(Debug, Deserialize)]
+        #[serde(untagged)]
+        enum OneOrMany {
+            One(String),
+            Many(Vec<String>),
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct Operation {
+            data: String,
+            asserts: HashMap<String, OneOrMany>,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct Category {
+            label: String,
+            operations: HashMap<String, Operation>,
+        }
+
+        #[derive(Debug, Deserialize)]
+        struct AggregatedTestData {
+            explorer_tx_prefix: String,
+            #[serde(flatten)]
+            modules: HashMap<String, HashMap<String, Category>>,
+        }
+
+        let json_str = include_str!("aggregated_test_data.json");
+        let data: AggregatedTestData =
+            serde_json::from_str(json_str).expect("invalid aggregated_test_data.json");
+
+        // TODO: use module during visualization (in details)
+        for (_module_name, module) in data.modules.iter() {
+            for (name, category) in module.iter() {
+                let label = &category.label;
+                for (op_id, op) in category.operations.iter() {
+                    let test_context = format!(
+                        "Test name: {name}. Tx id: {}{op_id}",
+                        data.explorer_tx_prefix
+                    );
+
+                    let payload = payload_from_b64_with_context(&op.data, &test_context);
+
+                    assert_has_field_with_context(&payload, label, &test_context);
+                    for (field, expected) in op.asserts.iter() {
+                        match expected {
+                            OneOrMany::One(value) => assert_has_field_with_value_with_context(
+                                &payload,
+                                field,
+                                value.as_str(),
+                                &test_context,
+                            ),
+                            OneOrMany::Many(values) => assert_has_fields_with_values_with_context(
+                                &payload,
+                                field,
+                                values.as_slice(),
+                                &test_context,
+                            ),
+                        }
+                    }
+                }
+            }
+        }
     }
 }
