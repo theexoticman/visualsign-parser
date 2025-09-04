@@ -1016,8 +1016,28 @@ mod tests {
             transaction::VersionedTransaction,
         };
 
+        // Add a transfer instruction (system transfer)
+        let transfer_instruction = solana_sdk::instruction::CompiledInstruction {
+            program_id_index: 2,                                 // system program
+            accounts: vec![0, 1],                                // from fee payer to recipient
+            data: vec![2, 0, 0, 0, 0, 202, 154, 59, 0, 0, 0, 0], // transfer 1 SOL (1_000_000_000 lamports)
+        };
         // Create a minimal V0 transaction manually to test the decode path
-        let mut v0_message = v0::Message::default();
+        let mut v0_message = v0::Message {
+            recent_blockhash: solana_sdk::hash::Hash::new_unique(),
+            header: solana_sdk::message::MessageHeader {
+                num_required_signatures: 1,
+                num_readonly_signed_accounts: 0,
+                num_readonly_unsigned_accounts: 1,
+            },
+            account_keys: vec![
+                Pubkey::new_unique(),
+                Pubkey::new_unique(),
+                solana_sdk::system_program::ID,
+            ],
+            address_table_lookups: vec![],
+            instructions: vec![transfer_instruction],
+        };
 
         // Add some account keys (fee payer, recipient, system program)
         v0_message.account_keys = vec![
@@ -1025,14 +1045,6 @@ mod tests {
             Pubkey::new_unique(),           // recipient
             solana_sdk::system_program::ID, // system program
         ];
-
-        // Add a transfer instruction (system transfer)
-        let transfer_instruction = solana_sdk::instruction::CompiledInstruction {
-            program_id_index: 2,                                 // system program
-            accounts: vec![0, 1],                                // from fee payer to recipient
-            data: vec![2, 0, 0, 0, 0, 202, 154, 59, 0, 0, 0, 0], // transfer 1 SOL (1_000_000_000 lamports)
-        };
-        v0_message.instructions = vec![transfer_instruction];
 
         // Create a versioned transaction
         let versioned_transaction = VersionedTransaction {
