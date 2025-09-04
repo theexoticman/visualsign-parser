@@ -217,10 +217,135 @@ impl CetusVisualizer {
         let by_amount_in = RouterSwapIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?;
         let amount = RouterSwapIndexes::get_amount(context.inputs(), &pwc.arguments)?;
 
-        // TODO: Min out is not explicitly provided here; use sqrt price limit presence to indicate
+        // Router has no explicit min-out/max-in; show 0 and surface price-limit knobs.
         let amount_limit = 0u64;
 
-        self.render_swap_fields(context, by_amount_in, amount, amount_limit, is_a2b, pwc)
+        let sqrt_price_limit =
+            RouterSwapIndexes::get_sqrt_price_limit(context.inputs(), &pwc.arguments)?;
+        let use_all_coin = RouterSwapIndexes::get_use_all_coin(context.inputs(), &pwc.arguments)?;
+
+        let (input_coin, output_coin): (SuiCoin, SuiCoin) =
+            self.determine_input_output_coins(is_a2b, pwc);
+        let (primary_label, primary_symbol, limit_label, limit_symbol) =
+            self.determine_primary_limit_labels(&input_coin, &output_coin, by_amount_in);
+
+        let mut list_layout_fields = vec![
+            create_address_field(
+                "User Address",
+                &context.sender().to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_amount_field(primary_label, &amount.to_string(), primary_symbol)?,
+            create_text_field("Input Coin", &input_coin.to_string())?,
+            create_amount_field(limit_label, &amount_limit.to_string(), limit_symbol)?,
+            create_text_field("Output Coin", &output_coin.to_string())?,
+        ];
+
+        let price_limit_text = if sqrt_price_limit == 0 {
+            "None".to_string()
+        } else {
+            sqrt_price_limit.to_string()
+        };
+        list_layout_fields.push(create_text_field("Sqrt Price Limit", &price_limit_text)?);
+        list_layout_fields.push(create_text_field(
+            "Use All Coin",
+            &use_all_coin.to_string(),
+        )?);
+
+        let title_text = format!(
+            "CetusAMM Swap: {} {} → {}",
+            amount,
+            input_coin.base_unit_symbol(),
+            output_coin.base_unit_symbol()
+        );
+        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
+
+        let price_hint = if sqrt_price_limit == 0 { "none" } else { "set" };
+        let condensed = SignablePayloadFieldListLayout {
+            fields: vec![create_text_field(
+                "Summary",
+                &format!(
+                    "Swap {} to {} ({}: {} {}, Price Limit: {})",
+                    input_coin.base_unit_symbol(),
+                    output_coin.base_unit_symbol(),
+                    limit_label,
+                    amount_limit,
+                    if by_amount_in {
+                        output_coin.base_unit_symbol()
+                    } else {
+                        input_coin.base_unit_symbol()
+                    },
+                    price_hint,
+                ),
+            )?],
+        };
+
+        let expanded = SignablePayloadFieldListLayout {
+            fields: list_layout_fields,
+        };
+
+        Ok(vec![AnnotatedPayloadField {
+            static_annotation: None,
+            dynamic_annotation: None,
+            signable_payload_field: SignablePayloadField::PreviewLayout {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: title_text.clone(),
+                    label: "CetusAMM Swap Command".to_string(),
+                },
+                preview_layout: SignablePayloadFieldPreviewLayout {
+                    title: Some(SignablePayloadFieldTextV2 { text: title_text }),
+                    subtitle: Some(SignablePayloadFieldTextV2 {
+                        text: subtitle_text,
+                    }),
+                    condensed: Some(condensed),
+                    expanded: Some(expanded),
+                },
+            },
+        }])
+    }
+
+    fn determine_input_output_coins(
+        &self,
+        is_a2b: bool,
+        pwc: &SuiProgrammableMoveCall,
+    ) -> (SuiCoin, SuiCoin) {
+        if is_a2b {
+            (
+                get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default(),
+                get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default(),
+            )
+        } else {
+            (
+                get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default(),
+                get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default(),
+            )
+        }
+    }
+
+    fn determine_primary_limit_labels<'a>(
+        &self,
+        input_coin: &'a SuiCoin,
+        output_coin: &'a SuiCoin,
+        by_amount_in: bool,
+    ) -> (&'a str, &'a str, &'a str, &'a str) {
+        if by_amount_in {
+            (
+                "Amount In",
+                input_coin.base_unit_symbol(),
+                "Min Out",
+                output_coin.base_unit_symbol(),
+            )
+        } else {
+            (
+                "Amount Out",
+                output_coin.base_unit_symbol(),
+                "Max In",
+                input_coin.base_unit_symbol(),
+            )
+        }
     }
 
     fn render_swap_fields(
@@ -232,33 +357,11 @@ impl CetusVisualizer {
         is_a2b: bool,
         pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let (input_coin, output_coin): (SuiCoin, SuiCoin) = if is_a2b {
-            (
-                get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default(),
-                get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default(),
-            )
-        } else {
-            (
-                get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default(),
-                get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default(),
-            )
-        };
+        let (input_coin, output_coin): (SuiCoin, SuiCoin) =
+            self.determine_input_output_coins(is_a2b, pwc);
 
-        let (primary_label, primary_symbol, limit_label, limit_symbol) = if by_amount_in {
-            (
-                "Amount In",
-                input_coin.symbol(),
-                "Min Out",
-                output_coin.symbol(),
-            )
-        } else {
-            (
-                "Amount Out",
-                output_coin.symbol(),
-                "Max In",
-                input_coin.symbol(),
-            )
-        };
+        let (primary_label, primary_symbol, limit_label, limit_symbol) =
+            self.determine_primary_limit_labels(&input_coin, &output_coin, by_amount_in);
 
         let list_layout_fields = vec![
             create_address_field(
@@ -278,8 +381,8 @@ impl CetusVisualizer {
         let title_text = format!(
             "CetusAMM Swap: {} {} → {}",
             amount,
-            input_coin.symbol(),
-            output_coin.symbol()
+            input_coin.base_unit_symbol(),
+            output_coin.base_unit_symbol()
         );
         let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
 
@@ -287,11 +390,16 @@ impl CetusVisualizer {
             fields: vec![create_text_field(
                 "Summary",
                 &format!(
-                    "Swap {} to {} ({}: {})",
-                    input_coin.symbol(),
-                    output_coin.symbol(),
+                    "Swap {} to {} ({}: {} {})",
+                    input_coin.base_unit_symbol(),
+                    output_coin.base_unit_symbol(),
                     limit_label,
-                    amount_limit
+                    amount_limit,
+                    if by_amount_in {
+                        output_coin.base_unit_symbol()
+                    } else {
+                        input_coin.base_unit_symbol()
+                    }
                 ),
             )?],
         };
@@ -339,20 +447,24 @@ impl CetusVisualizer {
                 None,
             )?,
             create_text_field("Coin", &coin.to_string())?,
-            create_amount_field("Threshold", &threshold.to_string(), coin.symbol())?,
+            create_amount_field("Threshold", &threshold.to_string(), coin.base_unit_symbol())?,
         ];
 
         let title_text = format!(
             "Cetus Router: Check Coin Threshold {} {}",
             threshold,
-            coin.symbol()
+            coin.base_unit_symbol()
         );
         let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
 
         let condensed = SignablePayloadFieldListLayout {
             fields: vec![create_text_field(
                 "Summary",
-                &format!("Check {} balance threshold {}", coin.symbol(), threshold),
+                &format!(
+                    "Check {} balance threshold {}",
+                    coin.base_unit_symbol(),
+                    threshold
+                ),
             )?],
         };
 
@@ -401,7 +513,10 @@ impl CetusVisualizer {
             create_text_field("Reward Coin", &reward_coin.to_string())?,
         ];
 
-        let title_text = format!("CetusAMM Collect Reward ({})", reward_coin.symbol());
+        let title_text = format!(
+            "CetusAMM Collect Reward ({})",
+            reward_coin.base_unit_symbol()
+        );
         let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
 
         let condensed = SignablePayloadFieldListLayout {
@@ -409,9 +524,9 @@ impl CetusVisualizer {
                 "Summary",
                 &format!(
                     "Collect rewards ({}) from pool {}/{}",
-                    reward_coin.symbol(),
-                    coin_a.symbol(),
-                    coin_b.symbol()
+                    reward_coin.base_unit_symbol(),
+                    coin_a.base_unit_symbol(),
+                    coin_b.base_unit_symbol()
                 ),
             )?],
         };
@@ -466,8 +581,8 @@ impl CetusVisualizer {
                 "Summary",
                 &format!(
                     "Collect fee from pool {}/{}",
-                    coin_a.symbol(),
-                    coin_b.symbol()
+                    coin_a.base_unit_symbol(),
+                    coin_b.base_unit_symbol()
                 ),
             )?],
         };
@@ -528,8 +643,8 @@ impl CetusVisualizer {
             )?,
             create_text_field("Pool Coin A", &coin_a.to_string())?,
             create_text_field("Pool Coin B", &coin_b.to_string())?,
-            create_amount_field("Min Out A", &min_a.to_string(), coin_a.symbol())?,
-            create_amount_field("Min Out B", &min_b.to_string(), coin_b.symbol())?,
+            create_amount_field("Min Out A", &min_a.to_string(), coin_a.base_unit_symbol())?,
+            create_amount_field("Min Out B", &min_b.to_string(), coin_b.base_unit_symbol())?,
         ];
 
         let title_text = "CetusAMM Close Position".to_string();
@@ -541,9 +656,9 @@ impl CetusVisualizer {
                 &format!(
                     "Close position and withdraw at least {} {} and {} {}",
                     min_a,
-                    coin_a.symbol(),
+                    coin_a.base_unit_symbol(),
                     min_b,
-                    coin_b.symbol()
+                    coin_b.base_unit_symbol()
                 ),
             )?],
         };
@@ -608,8 +723,8 @@ impl CetusVisualizer {
             create_text_field("Pool Coin A", &coin_a.to_string())?,
             create_text_field("Pool Coin B", &coin_b.to_string())?,
             create_amount_field("Liquidity", &liquidity.to_string(), "RAW")?,
-            create_amount_field("Min Out A", &min_a.to_string(), coin_a.symbol())?,
-            create_amount_field("Min Out B", &min_b.to_string(), coin_b.symbol())?,
+            create_amount_field("Min Out A", &min_a.to_string(), coin_a.base_unit_symbol())?,
+            create_amount_field("Min Out B", &min_b.to_string(), coin_b.base_unit_symbol())?,
         ];
 
         let title_text = "CetusAMM Remove Liquidity".to_string();
@@ -620,12 +735,12 @@ impl CetusVisualizer {
                 &format!(
                     "Remove liquidity {} from {}/{} (min {} {}, {} {})",
                     liquidity,
-                    coin_a.symbol(),
-                    coin_b.symbol(),
+                    coin_a.base_unit_symbol(),
+                    coin_b.base_unit_symbol(),
                     min_a,
-                    coin_a.symbol(),
+                    coin_a.base_unit_symbol(),
                     min_b,
-                    coin_b.symbol()
+                    coin_b.base_unit_symbol()
                 ),
             )?],
         };
@@ -679,8 +794,8 @@ impl CetusVisualizer {
             create_text_field("Pool Coin A", &coin_a.to_string())?,
             create_text_field("Pool Coin B", &coin_b.to_string())?,
             create_text_field("Fix Coin", &fix_coin.to_string())?,
-            create_amount_field("Amount A", &amount_a.to_string(), coin_a.symbol())?,
-            create_amount_field("Amount B", &amount_b.to_string(), coin_b.symbol())?,
+            create_amount_field("Amount A", &amount_a.to_string(), coin_a.base_unit_symbol())?,
+            create_amount_field("Amount B", &amount_b.to_string(), coin_b.base_unit_symbol())?,
         ];
 
         let title_text = "CetusAMM Add Liquidity (Fix Coin)".to_string();
@@ -689,10 +804,12 @@ impl CetusVisualizer {
             fields: vec![create_text_field(
                 "Summary",
                 &format!(
-                    "Add liquidity with {} fixed (A: {}, B: {})",
-                    fix_coin.symbol(),
+                    "Add liquidity with {} fixed (A: {} {}, B: {} {})",
+                    fix_coin.base_unit_symbol(),
                     amount_a,
-                    amount_b
+                    coin_a.base_unit_symbol(),
+                    amount_b,
+                    coin_b.base_unit_symbol()
                 ),
             )?],
         };
@@ -766,8 +883,8 @@ impl CetusVisualizer {
             create_text_field("Pool Coin A", &coin_a.to_string())?,
             create_text_field("Pool Coin B", &coin_b.to_string())?,
             create_text_field("Fix Coin", &fix_coin.to_string())?,
-            create_amount_field("Amount A", &amount_a.to_string(), coin_a.symbol())?,
-            create_amount_field("Amount B", &amount_b.to_string(), coin_b.symbol())?,
+            create_amount_field("Amount A", &amount_a.to_string(), coin_a.base_unit_symbol())?,
+            create_amount_field("Amount B", &amount_b.to_string(), coin_b.base_unit_symbol())?,
         ];
 
         let title_text = "CetusAMM Open Position With Liquidity".to_string();
@@ -776,10 +893,12 @@ impl CetusVisualizer {
             fields: vec![create_text_field(
                 "Summary",
                 &format!(
-                    "Open position with {} fixed (A: {}, B: {})",
-                    fix_coin.symbol(),
+                    "Open position with {} fixed (A: {} {}, B: {} {})",
+                    fix_coin.base_unit_symbol(),
                     amount_a,
-                    amount_b
+                    coin_a.base_unit_symbol(),
+                    amount_b,
+                    coin_b.base_unit_symbol()
                 ),
             )?],
         };
@@ -822,8 +941,8 @@ impl CetusVisualizer {
                 "Summary",
                 &format!(
                     "Operate liquidity on pool {}/{}",
-                    coin_a.symbol(),
-                    coin_b.symbol()
+                    coin_a.base_unit_symbol(),
+                    coin_b.base_unit_symbol()
                 ),
             )?],
         };
@@ -880,12 +999,15 @@ impl CetusVisualizer {
             create_text_field("Coin", &coin.to_string())?,
         ];
 
-        let title_text = format!("Cetus Utils: Transfer {} to Sender", coin.symbol());
+        let title_text = format!(
+            "Cetus Utils: Transfer {} to Sender",
+            coin.base_unit_symbol()
+        );
         let subtitle_text = format!("To {}", truncate_address(&context.sender().to_string()));
         let condensed = SignablePayloadFieldListLayout {
             fields: vec![create_text_field(
                 "Summary",
-                &format!("Transfer {} to sender", coin.symbol()),
+                &format!("Transfer {} to sender", coin.base_unit_symbol()),
             )?],
         };
 

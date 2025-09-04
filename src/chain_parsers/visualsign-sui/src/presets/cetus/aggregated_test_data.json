@@ -386,7 +386,9 @@
             "Amount In": "24335483156",
             "Input Coin": "0x6dd439dee053557b3dd340287a4b81099b3e729cb48fbdae726dd2dff82736c3::slove::SLOVE",
             "Min Out": "0",
-            "Output Coin": "0x2::sui::SUI"
+            "Output Coin": "0x2::sui::SUI",
+            "Sqrt Price Limit": "4295048016",
+            "Use All Coin": "false"
           }
         }
       }
