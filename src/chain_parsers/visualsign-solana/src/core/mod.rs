@@ -6,9 +6,11 @@ use solana_parser::solana::structs::SolanaAccount;
 use solana_sdk::instruction::Instruction;
 
 mod instructions;
+mod txtypes;
 mod visualsign;
 
 pub use instructions::*;
+pub use txtypes::*;
 pub use visualsign::*;
 
 /// Identifier for which visualizer handled a command, categorized by dApp type. - Copied from Sui chain_parser

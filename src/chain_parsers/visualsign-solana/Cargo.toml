@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+
+tracing = { workspace = true }
 solana_parser = { git = "https://github.com/tkhq/solana-parser.git" }
 visualsign = { workspace = true }
 hex = "0.4.3"

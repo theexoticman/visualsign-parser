@@ -11225,6 +11225,7 @@ dependencies = [
  "spl-associated-token-account 6.0.0",
  "spl-stake-pool",
  "spl-token 7.0.0",
+ "tracing",
  "visualsign",
 ]
 
