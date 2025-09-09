@@ -1,10 +1,10 @@
-//! Core types, traits, and orchestration for Sui → VisualSign conversion.
+//! Core types, traits, and orchestration for Sui → `VisualSign` conversion.
 //!
 //! - `chain_config`: declarative macros for package/module/function layouts and typed getters.
 //! - `commands`: walks transaction commands and dispatches to available visualizers.
 //! - `helper`: chain resolution utilities (module cache adapters, etc.).
 //! - `transaction`: raw decoding and helpers for titles/network/details.
-//! - `visualsign`: public API surface for converting to VisualSign payloads.
+//! - `visualsign`: public API surface for converting to `VisualSign` payloads.
 
 mod chain_config;
 mod commands;

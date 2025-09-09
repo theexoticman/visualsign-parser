@@ -1,4 +1,4 @@
-//! Public conversion entry points and wrapper types for VisualSign on Sui.
+//! Public conversion entry points and wrapper types for `VisualSign` on Sui.
 
 use crate::core::commands::decode_commands;
 use crate::core::helper::SuiModuleResolver;
@@ -77,7 +77,7 @@ impl VisualSignConverter<SuiTransactionWrapper> for SuiVisualSignConverter {
     }
 }
 
-/// Convert Sui transaction to a VisualSign payload.
+/// Convert Sui transaction to a `VisualSign` payload.
 fn convert_to_visual_sign_payload(
     transaction: &TransactionData,
     decode_transfers: bool,
