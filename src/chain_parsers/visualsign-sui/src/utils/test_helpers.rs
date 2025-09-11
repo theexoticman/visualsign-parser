@@ -26,6 +26,7 @@ use visualsign::test_utils::{
     assert_has_fields_with_values_with_context,
 };
 use visualsign::vsptrait::VisualSignOptions;
+use crate::core::{CommandVisualizer, VisualizerContext};
 
 pub fn payload_from_b64(data: &str) -> SignablePayload {
     transaction_string_to_visual_sign(
@@ -81,7 +82,7 @@ pub struct AggregatedTestData {
 /// Runs a standard aggregated test over protocol JSON fixtures.
 /// - `json_str`: contents of `aggregated_test_data.json` via `include_str`!
 /// - `protocol`: short name, used only in assertion context strings
-pub fn run_aggregated_fixture(json_str: &str, _protocol: &str) {
+pub fn run_aggregated_fixture(json_str: &str, protocol: Box<dyn CommandVisualizer>) {
     let data: AggregatedTestData =
         serde_json::from_str(json_str).expect("invalid aggregated_test_data.json");
 

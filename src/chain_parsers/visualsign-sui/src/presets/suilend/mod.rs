@@ -936,10 +936,12 @@ impl SuilendVisualizer {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    
     use crate::utils::run_aggregated_fixture;
 
     #[test]
     fn test_suilend_aggregated() {
-        run_aggregated_fixture(include_str!("aggregated_test_data.json"), "Suilend");
+        run_aggregated_fixture(include_str!("aggregated_test_data.json"), Box::new(SuilendVisualizer));
     }
 }

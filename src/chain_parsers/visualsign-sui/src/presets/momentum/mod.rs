@@ -598,6 +598,8 @@ impl MomentumVisualizer {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use crate::utils::{payload_from_b64, run_aggregated_fixture};
 
     use visualsign::test_utils::assert_has_field;
@@ -622,6 +624,6 @@ mod tests {
 
     #[test]
     fn test_momentum_aggregated() {
-        run_aggregated_fixture(include_str!("aggregated_test_data.json"), "Momentum");
+        run_aggregated_fixture(include_str!("aggregated_test_data.json"), Box::new(MomentumVisualizer));
     }
 }

@@ -1016,6 +1016,8 @@ impl CetusVisualizer {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    
     use crate::utils::{payload_from_b64, run_aggregated_fixture};
 
     use visualsign::test_utils::{assert_has_field, assert_has_field_with_value};
@@ -1074,6 +1076,6 @@ mod tests {
 
     #[test]
     fn test_cetus_amm_aggregated() {
-        run_aggregated_fixture(include_str!("aggregated_test_data.json"), "Cetus");
+        run_aggregated_fixture(include_str!("aggregated_test_data.json"), Box::new(CetusVisualizer));
     }
 }
