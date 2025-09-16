@@ -10,12 +10,13 @@ use config::{
 };
 
 use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext, VisualizerKind};
-use crate::utils::{SuiCoin, get_tx_type_arg, truncate_address};
+use crate::utils::{SuiCoin, get_object_value, get_tx_type_arg, truncate_address};
 
 use sui_json_rpc_types::{SuiCommand, SuiProgrammableMoveCall};
 
 use crate::presets::cetus::config::{
-    PoolScriptV3Functions, SwapA2BWithPartnerIndexes, SwapB2AWithPartnerIndexes,
+    PoolScriptOpenPositionWithLiquidityWithAllIndexes, PoolScriptV3Functions,
+    SwapA2BWithPartnerIndexes, SwapB2AWithPartnerIndexes,
 };
 use visualsign::{
     AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldCommon,
@@ -55,7 +56,7 @@ impl CommandVisualizer for CetusVisualizer {
                     Self::handle_remove_liquidity_pool_script(context, pwc)
                 }
                 PoolScriptFunctions::OpenPositionWithLiquidityWithAll => {
-                    Self::handle_pool_script_liquidity_ops(context, pwc)
+                    Self::handle_open_position_with_liquidity_with_all_pool_script(context, pwc)
                 }
             },
             CetusModules::PoolScriptV2 => match pwc.function.as_str().try_into()? {
@@ -109,21 +110,31 @@ impl CetusVisualizer {
         context: &VisualizerContext,
         pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let (by_amount_in, amount, amount_limit) = if is_a2b {
+        let (by_amount_in, amount, amount_limit, sqrt_price_limit) = if is_a2b {
             (
                 SwapA2BIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?,
                 SwapA2BIndexes::get_amount(context.inputs(), &pwc.arguments)?,
                 SwapA2BIndexes::get_amount_limit(context.inputs(), &pwc.arguments)?,
+                SwapA2BIndexes::get_sqrt_price_limit(context.inputs(), &pwc.arguments)?,
             )
         } else {
             (
                 SwapB2AIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?,
                 SwapB2AIndexes::get_amount(context.inputs(), &pwc.arguments)?,
                 SwapB2AIndexes::get_amount_limit(context.inputs(), &pwc.arguments)?,
+                SwapB2AIndexes::get_sqrt_price_limit(context.inputs(), &pwc.arguments)?,
             )
         };
 
-        Self::render_swap_fields(context, by_amount_in, amount, amount_limit, is_a2b, pwc)
+        Self::render_swap_fields(
+            context,
+            by_amount_in,
+            amount,
+            amount_limit,
+            is_a2b,
+            sqrt_price_limit,
+            pwc,
+        )
     }
 
     fn handle_swap_v2_with_partner(
@@ -131,21 +142,31 @@ impl CetusVisualizer {
         context: &VisualizerContext,
         pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let (by_amount_in, amount, amount_limit) = if is_a2b {
+        let (by_amount_in, amount, amount_limit, sqrt_price_limit) = if is_a2b {
             (
                 SwapA2BWithPartnerIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?,
                 SwapA2BWithPartnerIndexes::get_amount(context.inputs(), &pwc.arguments)?,
                 SwapA2BWithPartnerIndexes::get_amount_limit(context.inputs(), &pwc.arguments)?,
+                SwapA2BWithPartnerIndexes::get_sqrt_price_limit(context.inputs(), &pwc.arguments)?,
             )
         } else {
             (
                 SwapB2AWithPartnerIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?,
                 SwapB2AWithPartnerIndexes::get_amount(context.inputs(), &pwc.arguments)?,
                 SwapB2AWithPartnerIndexes::get_amount_limit(context.inputs(), &pwc.arguments)?,
+                SwapB2AWithPartnerIndexes::get_sqrt_price_limit(context.inputs(), &pwc.arguments)?,
             )
         };
 
-        Self::render_swap_fields(context, by_amount_in, amount, amount_limit, is_a2b, pwc)
+        Self::render_swap_fields(
+            context,
+            by_amount_in,
+            amount,
+            amount_limit,
+            is_a2b,
+            sqrt_price_limit,
+            pwc,
+        )
     }
 
     fn handle_swap_pool_script(
@@ -153,21 +174,31 @@ impl CetusVisualizer {
         context: &VisualizerContext,
         pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let (by_amount_in, amount, amount_limit) = if is_a2b {
+        let (by_amount_in, amount, amount_limit, sqrt_price_limit) = if is_a2b {
             (
                 PoolScriptSwapA2BIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?,
                 PoolScriptSwapA2BIndexes::get_amount(context.inputs(), &pwc.arguments)?,
                 PoolScriptSwapA2BIndexes::get_amount_limit(context.inputs(), &pwc.arguments)?,
+                PoolScriptSwapA2BIndexes::get_sqrt_price_limit(context.inputs(), &pwc.arguments)?,
             )
         } else {
             (
                 PoolScriptSwapB2AIndexes::get_by_amount_in(context.inputs(), &pwc.arguments)?,
                 PoolScriptSwapB2AIndexes::get_amount(context.inputs(), &pwc.arguments)?,
                 PoolScriptSwapB2AIndexes::get_amount_limit(context.inputs(), &pwc.arguments)?,
+                PoolScriptSwapB2AIndexes::get_sqrt_price_limit(context.inputs(), &pwc.arguments)?,
             )
         };
 
-        Self::render_swap_fields(context, by_amount_in, amount, amount_limit, is_a2b, pwc)
+        Self::render_swap_fields(
+            context,
+            by_amount_in,
+            amount,
+            amount_limit,
+            is_a2b,
+            sqrt_price_limit,
+            pwc,
+        )
     }
 
     fn handle_swap_pool_script_with_partner(
@@ -175,7 +206,7 @@ impl CetusVisualizer {
         context: &VisualizerContext,
         pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let (by_amount_in, amount, amount_limit) = if is_a2b {
+        let (by_amount_in, amount, amount_limit, sqrt_price_limit) = if is_a2b {
             (
                 PoolScriptSwapA2BWithPartnerIndexes::get_by_amount_in(
                     context.inputs(),
@@ -183,6 +214,10 @@ impl CetusVisualizer {
                 )?,
                 PoolScriptSwapA2BWithPartnerIndexes::get_amount(context.inputs(), &pwc.arguments)?,
                 PoolScriptSwapA2BWithPartnerIndexes::get_amount_limit(
+                    context.inputs(),
+                    &pwc.arguments,
+                )?,
+                PoolScriptSwapA2BWithPartnerIndexes::get_sqrt_price_limit(
                     context.inputs(),
                     &pwc.arguments,
                 )?,
@@ -198,10 +233,22 @@ impl CetusVisualizer {
                     context.inputs(),
                     &pwc.arguments,
                 )?,
+                PoolScriptSwapB2AWithPartnerIndexes::get_sqrt_price_limit(
+                    context.inputs(),
+                    &pwc.arguments,
+                )?,
             )
         };
 
-        Self::render_swap_fields(context, by_amount_in, amount, amount_limit, is_a2b, pwc)
+        Self::render_swap_fields(
+            context,
+            by_amount_in,
+            amount,
+            amount_limit,
+            is_a2b,
+            sqrt_price_limit,
+            pwc,
+        )
     }
 
     fn handle_router_swap(
@@ -347,6 +394,7 @@ impl CetusVisualizer {
         amount: u64,
         amount_limit: u64,
         is_a2b: bool,
+        sqrt_price_limit: u128,
         pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
         let (input_coin, output_coin): (SuiCoin, SuiCoin) =
@@ -355,7 +403,15 @@ impl CetusVisualizer {
         let (primary_label, primary_symbol, limit_label, limit_symbol) =
             Self::determine_primary_limit_labels(&input_coin, &output_coin, by_amount_in);
 
-        let list_layout_fields = vec![
+        let mut list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -377,6 +433,13 @@ impl CetusVisualizer {
             output_coin.base_unit_symbol()
         );
         let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
+
+        let price_limit_text = if sqrt_price_limit == 0 {
+            "None".to_string()
+        } else {
+            sqrt_price_limit.to_string()
+        };
+        list_layout_fields.push(create_text_field("Sqrt Price Limit", &price_limit_text)?);
 
         let condensed = SignablePayloadFieldListLayout {
             fields: vec![create_text_field(
@@ -491,6 +554,14 @@ impl CetusVisualizer {
 
         let list_layout_fields = vec![
             create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_address_field(
                 "User Address",
                 &context.sender().to_string(),
                 None,
@@ -549,7 +620,16 @@ impl CetusVisualizer {
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
         let coin_a: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
         let coin_b: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
+
         let list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -609,17 +689,26 @@ impl CetusVisualizer {
         let min_b =
             PoolScriptClosePositionIndexes::get_min_amount_b(context.inputs(), &pwc.arguments)?;
 
-        Self::render_close_position(context, &coin_a, &coin_b, min_a, min_b)
+        Self::render_close_position(context, pwc, &coin_a, &coin_b, min_a, min_b)
     }
 
     fn render_close_position(
         context: &VisualizerContext,
+        pwc: &SuiProgrammableMoveCall,
         coin_a: &SuiCoin,
         coin_b: &SuiCoin,
         min_a: u64,
         min_b: u64,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
         let list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -685,11 +774,12 @@ impl CetusVisualizer {
         let min_b =
             PoolScriptRemoveLiquidityIndexes::get_min_amount_b(context.inputs(), &pwc.arguments)?;
 
-        Self::render_remove_liquidity(context, &coin_a, &coin_b, liquidity, min_a, min_b)
+        Self::render_remove_liquidity(context, pwc, &coin_a, &coin_b, liquidity, min_a, min_b)
     }
 
     fn render_remove_liquidity(
         context: &VisualizerContext,
+        pwc: &SuiProgrammableMoveCall,
         coin_a: &SuiCoin,
         coin_b: &SuiCoin,
         liquidity: u128,
@@ -697,6 +787,14 @@ impl CetusVisualizer {
         min_b: u64,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
         let list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -768,6 +866,14 @@ impl CetusVisualizer {
 
         let list_layout_fields = vec![
             create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_address_field(
                 "User Address",
                 &context.sender().to_string(),
                 None,
@@ -838,22 +944,50 @@ impl CetusVisualizer {
             context.inputs(),
             &pwc.arguments,
         )?;
+        let tick_lower_idx = OpenPositionWithLiquidityByFixCoinIndexes::get_tick_lower_idx(
+            context.inputs(),
+            &pwc.arguments,
+        )?;
+        let tick_upper_idx = OpenPositionWithLiquidityByFixCoinIndexes::get_tick_upper_idx(
+            context.inputs(),
+            &pwc.arguments,
+        )?;
 
         Self::render_open_position_with_liquidity(
-            context, &coin_a, &coin_b, amount_a, amount_b, is_fix_a,
+            context,
+            pwc,
+            &coin_a,
+            &coin_b,
+            amount_a,
+            amount_b,
+            is_fix_a,
+            tick_lower_idx,
+            tick_upper_idx,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_open_position_with_liquidity(
         context: &VisualizerContext,
+        pwc: &SuiProgrammableMoveCall,
         coin_a: &SuiCoin,
         coin_b: &SuiCoin,
         amount_a: u64,
         amount_b: u64,
         is_fix_a: bool,
+        tick_lower_idx: u32,
+        tick_upper_idx: u32,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
         let fix_coin = if is_fix_a { &coin_a } else { &coin_b };
         let list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -867,6 +1001,8 @@ impl CetusVisualizer {
             create_text_field("Fix Coin", &fix_coin.to_string())?,
             create_amount_field("Amount A", &amount_a.to_string(), coin_a.base_unit_symbol())?,
             create_amount_field("Amount B", &amount_b.to_string(), coin_b.base_unit_symbol())?,
+            create_text_field("Tick Lower Index", &tick_lower_idx.to_string())?,
+            create_text_field("Tick Upper Index", &tick_upper_idx.to_string())?,
         ];
 
         let title_text = "CetusAMM Open Position With Liquidity".to_string();
@@ -906,59 +1042,44 @@ impl CetusVisualizer {
         }])
     }
 
-    fn handle_pool_script_liquidity_ops(
+    fn handle_open_position_with_liquidity_with_all_pool_script(
         context: &VisualizerContext,
         pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        // For pool_script liquidity-related helpers, just show coin types; amounts are already
-        // captured in other flows or depend on nested receipts. Keep a simple summary.
         let coin_a: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
         let coin_b: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
+        let amount_a = PoolScriptOpenPositionWithLiquidityWithAllIndexes::get_amount_a(
+            context.inputs(),
+            &pwc.arguments,
+        )?;
+        let amount_b = PoolScriptOpenPositionWithLiquidityWithAllIndexes::get_amount_b(
+            context.inputs(),
+            &pwc.arguments,
+        )?;
+        let is_fix_a = PoolScriptOpenPositionWithLiquidityWithAllIndexes::get_is_fix_a(
+            context.inputs(),
+            &pwc.arguments,
+        )?;
+        let tick_lower_idx = PoolScriptOpenPositionWithLiquidityWithAllIndexes::get_tick_lower_idx(
+            context.inputs(),
+            &pwc.arguments,
+        )?;
+        let tick_upper_idx = PoolScriptOpenPositionWithLiquidityWithAllIndexes::get_tick_upper_idx(
+            context.inputs(),
+            &pwc.arguments,
+        )?;
 
-        let title_text = "CetusAMM Liquidity Operation".to_string();
-        let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
-        let condensed = SignablePayloadFieldListLayout {
-            fields: vec![create_text_field(
-                "Summary",
-                &format!(
-                    "Operate liquidity on pool {}/{}",
-                    coin_a.base_unit_symbol(),
-                    coin_b.base_unit_symbol()
-                ),
-            )?],
-        };
-        let expanded = SignablePayloadFieldListLayout {
-            fields: vec![
-                create_address_field(
-                    "User Address",
-                    &context.sender().to_string(),
-                    None,
-                    None,
-                    None,
-                    None,
-                )?,
-                create_text_field("Pool Coin A", &coin_a.to_string())?,
-                create_text_field("Pool Coin B", &coin_b.to_string())?,
-            ],
-        };
-        Ok(vec![AnnotatedPayloadField {
-            static_annotation: None,
-            dynamic_annotation: None,
-            signable_payload_field: SignablePayloadField::PreviewLayout {
-                common: SignablePayloadFieldCommon {
-                    fallback_text: title_text.clone(),
-                    label: "CetusAMM Liquidity Command".to_string(),
-                },
-                preview_layout: SignablePayloadFieldPreviewLayout {
-                    title: Some(SignablePayloadFieldTextV2 { text: title_text }),
-                    subtitle: Some(SignablePayloadFieldTextV2 {
-                        text: subtitle_text,
-                    }),
-                    condensed: Some(condensed),
-                    expanded: Some(expanded),
-                },
-            },
-        }])
+        Self::render_open_position_with_liquidity(
+            context,
+            pwc,
+            &coin_a,
+            &coin_b,
+            amount_a,
+            amount_b,
+            is_fix_a,
+            tick_lower_idx,
+            tick_upper_idx,
+        )
     }
 
     fn handle_transfer_coin_to_sender(
@@ -1016,6 +1137,8 @@ impl CetusVisualizer {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use crate::utils::{payload_from_b64, run_aggregated_fixture};
 
     use visualsign::test_utils::{assert_has_field, assert_has_field_with_value};
@@ -1074,6 +1197,9 @@ mod tests {
 
     #[test]
     fn test_cetus_amm_aggregated() {
-        run_aggregated_fixture(include_str!("aggregated_test_data.json"), "Cetus");
+        run_aggregated_fixture(
+            include_str!("aggregated_test_data.json"),
+            Box::new(CetusVisualizer),
+        );
     }
 }

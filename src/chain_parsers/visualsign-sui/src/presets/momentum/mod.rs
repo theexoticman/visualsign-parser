@@ -5,11 +5,13 @@ use config::{
 };
 
 use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext, VisualizerKind};
-use crate::utils::{SuiCoin, get_tx_type_arg, truncate_address};
+use crate::utils::{SuiCoin, get_object_value, get_tx_type_arg, truncate_address};
 
 use sui_json_rpc_types::{SuiCommand, SuiProgrammableMoveCall};
 
-use crate::presets::momentum::config::{AddLiquidityIndexes, RemoveLiquidityIndexes};
+use crate::presets::momentum::config::{
+    AddLiquidityIndexes, FlashSwapIndexes, RemoveLiquidityIndexes,
+};
 use visualsign::errors::VisualSignError;
 use visualsign::field_builders::{create_address_field, create_amount_field};
 use visualsign::{
@@ -37,7 +39,7 @@ impl CommandVisualizer for MomentumVisualizer {
                 LiquidityFunctions::RemoveLiquidity => {
                     Ok(Self::handle_remove_liquidity(context, pwc)?)
                 }
-                LiquidityFunctions::ClosePosition => Ok(Self::handle_close_position(context)?),
+                LiquidityFunctions::ClosePosition => Ok(Self::handle_close_position(context, pwc)?),
                 LiquidityFunctions::AddLiquidity => Ok(Self::handle_add_liquidity(context, pwc)?),
                 LiquidityFunctions::OpenPosition => Ok(Self::handle_open_position(context, pwc)?),
             },
@@ -87,6 +89,22 @@ impl MomentumVisualizer {
             RemoveLiquidityIndexes::get_min_amount_y(context.inputs(), &pwc.arguments)?;
 
         let list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_address_field(
+                "Position",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -157,15 +175,26 @@ impl MomentumVisualizer {
 
     fn handle_close_position(
         context: &VisualizerContext,
+        pwc: &SuiProgrammableMoveCall,
     ) -> Result<Vec<AnnotatedPayloadField>, VisualSignError> {
-        let list_layout_fields = vec![create_address_field(
-            "User Address",
-            &context.sender().to_string(),
-            None,
-            None,
-            None,
-            None,
-        )?];
+        let list_layout_fields = vec![
+            create_address_field(
+                "Position",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_address_field(
+                "User Address",
+                &context.sender().to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+        ];
 
         {
             let title_text = "Momentum Close Position".to_string();
@@ -214,6 +243,14 @@ impl MomentumVisualizer {
         let min_amount_y = AddLiquidityIndexes::get_min_amount_y(context.inputs(), &pwc.arguments)?;
 
         let list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -289,6 +326,14 @@ impl MomentumVisualizer {
         // TODO: think how to pipe lower and upper ticks
         let list_layout_fields = vec![
             create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_address_field(
                 "User Address",
                 &context.sender().to_string(),
                 None,
@@ -344,6 +389,22 @@ impl MomentumVisualizer {
         let coin_2: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
 
         let list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_address_field(
+                "Position",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -401,6 +462,22 @@ impl MomentumVisualizer {
 
         let list_layout_fields = vec![
             create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_address_field(
+                "Position",
+                &get_object_value(&pwc.arguments, context.inputs(), 1)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
+            create_address_field(
                 "User Address",
                 &context.sender().to_string(),
                 None,
@@ -456,7 +533,15 @@ impl MomentumVisualizer {
         let coin_1: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 0).unwrap_or_default();
         let coin_2: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
 
-        let list_layout_fields = vec![
+        let mut list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -468,6 +553,15 @@ impl MomentumVisualizer {
             create_text_field("Pool Coin A", &coin_1.to_string())?,
             create_text_field("Pool Coin B", &coin_2.to_string())?,
         ];
+
+        let sqrt_price_limit =
+            FlashSwapIndexes::get_sqrt_price_limit(context.inputs(), &pwc.arguments)?;
+        let price_limit_text = if sqrt_price_limit == 0 {
+            "None".to_string()
+        } else {
+            sqrt_price_limit.to_string()
+        };
+        list_layout_fields.push(create_text_field("Sqrt Price Limit", &price_limit_text)?);
 
         let title_text = "Momentum Flash Swap".to_string();
         let subtitle_text = format!("From {}", truncate_address(&context.sender().to_string()));
@@ -508,6 +602,14 @@ impl MomentumVisualizer {
         let coin_2: SuiCoin = get_tx_type_arg(&pwc.type_arguments, 1).unwrap_or_default();
 
         let list_layout_fields = vec![
+            create_address_field(
+                "Pool Address",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_address_field(
                 "User Address",
                 &context.sender().to_string(),
@@ -598,6 +700,8 @@ impl MomentumVisualizer {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use crate::utils::{payload_from_b64, run_aggregated_fixture};
 
     use visualsign::test_utils::assert_has_field;
@@ -622,6 +726,9 @@ mod tests {
 
     #[test]
     fn test_momentum_aggregated() {
-        run_aggregated_fixture(include_str!("aggregated_test_data.json"), "Momentum");
+        run_aggregated_fixture(
+            include_str!("aggregated_test_data.json"),
+            Box::new(MomentumVisualizer),
+        );
     }
 }

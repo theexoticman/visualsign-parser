@@ -1,5 +1,6 @@
-use sui_json_rpc_types::SuiArgument;
 use sui_json_rpc_types::SuiArgument::Input;
+use sui_json_rpc_types::{SuiArgument, SuiCallArg};
+use sui_types::base_types::ObjectID;
 use visualsign::errors::VisualSignError;
 
 /// Gets the index from the Sui arguments array (expects a single argument)
@@ -59,4 +60,19 @@ where
         .ok_or(VisualSignError::MissingData(
             "Index out of bounds for transaction type argument".into(),
         ))
+}
+
+pub fn get_object_value(
+    sui_args: &[SuiArgument],
+    sui_inputs: &[SuiCallArg],
+    arg_index: usize,
+) -> Result<ObjectID, VisualSignError> {
+    let input = sui_inputs
+        .get(get_index(sui_args, Some(arg_index))? as usize)
+        .ok_or(VisualSignError::MissingData("Command not found".into()))?;
+
+    match input.object() {
+        Some(obj) => Ok(*obj),
+        _ => Err(VisualSignError::MissingData("Object not found".into())),
+    }
 }

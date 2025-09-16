@@ -10,8 +10,8 @@ use config::{
 
 use crate::core::{CommandVisualizer, SuiIntegrationConfig, VisualizerContext, VisualizerKind};
 use crate::utils::{
-    SuiCoin, SuiPackage, decode_number, get_index, get_nested_result_value, get_tx_type_arg,
-    truncate_address,
+    SuiCoin, SuiPackage, decode_number, get_index, get_nested_result_value, get_object_value,
+    get_tx_type_arg, truncate_address,
 };
 
 use sui_json_rpc_types::{SuiArgument, SuiCallArg, SuiCommand, SuiProgrammableMoveCall};
@@ -132,8 +132,24 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -201,8 +217,24 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -273,8 +305,24 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -330,8 +378,24 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -391,8 +455,24 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -456,8 +536,24 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -515,8 +611,24 @@ impl SuilendVisualizer {
         let expanded = SignablePayloadFieldListLayout {
             fields: vec![
                 create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -573,6 +685,14 @@ impl SuilendVisualizer {
                 create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -645,6 +765,14 @@ impl SuilendVisualizer {
                     None,
                     None,
                 )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
                 create_text_field("Pool Address", &package.to_string())?,
                 create_text_field(
                     "Redeem cTokens and Withdraw Liquidity Coin",
@@ -699,6 +827,14 @@ impl SuilendVisualizer {
                 create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -773,6 +909,14 @@ impl SuilendVisualizer {
                 None,
                 None,
             )?,
+            create_address_field(
+                "Lending Market",
+                &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                None,
+                None,
+                None,
+                None,
+            )?,
             create_text_field("Pool Address", &package.to_string())?,
             create_text_field("Repay Coin", &coin.to_string())?,
             amount_field,
@@ -830,6 +974,14 @@ impl SuilendVisualizer {
                 create_address_field(
                     "User Address",
                     &context.sender().to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
                     None,
                     None,
                     None,
@@ -900,6 +1052,14 @@ impl SuilendVisualizer {
                     None,
                     None,
                 )?,
+                create_address_field(
+                    "Lending Market",
+                    &get_object_value(&pwc.arguments, context.inputs(), 0)?.to_string(),
+                    None,
+                    None,
+                    None,
+                    None,
+                )?,
                 create_text_field("Pool Address", &package.to_string())?,
                 create_text_field("Withdraw cTokens Coin", &coin.to_string())?,
                 create_amount_field(
@@ -936,10 +1096,15 @@ impl SuilendVisualizer {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use crate::utils::run_aggregated_fixture;
 
     #[test]
     fn test_suilend_aggregated() {
-        run_aggregated_fixture(include_str!("aggregated_test_data.json"), "Suilend");
+        run_aggregated_fixture(
+            include_str!("aggregated_test_data.json"),
+            Box::new(SuilendVisualizer),
+        );
     }
 }
