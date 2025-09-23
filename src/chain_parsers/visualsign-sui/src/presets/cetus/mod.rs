@@ -298,7 +298,7 @@ impl CetusVisualizer {
         )?);
 
         let title_text = format!(
-            "CetusAMM Swap: {} {} → {}",
+            "CetusAMM Swap: {} From {} To {}",
             amount,
             input_coin.base_unit_symbol(),
             output_coin.base_unit_symbol()
@@ -427,7 +427,7 @@ impl CetusVisualizer {
         ];
 
         let title_text = format!(
-            "CetusAMM Swap: {} {} → {}",
+            "CetusAMM Swap: {} From {} To {}",
             amount,
             input_coin.base_unit_symbol(),
             output_coin.base_unit_symbol()
