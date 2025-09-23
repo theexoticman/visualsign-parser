@@ -406,14 +406,14 @@ impl SignablePayload {
         // Check for unicode escapes
         if json_str.contains("\\u") {
             return Err(VisualSignError::ValidationError(
-                "JSON output contains unicode escape sequences".to_string(),
+                "Restricted Characters Detected".to_string(),
             ));
         }
 
         // Use Rust's built-in ASCII validation
         if !json_str.is_ascii() {
             return Err(VisualSignError::ValidationError(
-                "JSON output contains non-ASCII characters".to_string(),
+                "Restricted Characters Detected".to_string(),
             ));
         }
 

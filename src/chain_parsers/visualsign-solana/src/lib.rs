@@ -35,35 +35,6 @@ mod tests {
             .to_validated_json()
             .expect("Should serialize to JSON with valid charset");
 
-        // The validate_charset was already called by to_validated_json, so these checks are redundant
-        // but we'll keep them for explicit testing
-        assert!(
-            !json_result.contains("\\u003e"),
-            "JSON should not contain \\u003e unicode escape"
-        );
-        assert!(
-            !json_result.contains("\\u003c"),
-            "JSON should not contain \\u003c unicode escape"
-        );
-        assert!(
-            !json_result.contains("\\u0026"),
-            "JSON should not contain \\u0026 unicode escape"
-        );
-        assert!(
-            !json_result.contains("\\u0027"),
-            "JSON should not contain \\u0027 unicode escape"
-        );
-
-        // Also check for other common unicode escapes
-        let unicode_escapes = vec!["\\u003e", "\\u003c", "\\u0026", "\\u0027", "\\u002b"];
-        for escape in unicode_escapes {
-            assert!(
-                !json_result.contains(escape),
-                "JSON should not contain unicode escape {}, but found in: {}",
-                escape,
-                json_result.chars().take(500).collect::<String>()
-            );
-        }
 
         tracing::info!("✅ Transaction decoded successfully without unicode escapes");
         tracing::info!("✅ Transaction type: {}", payload.payload_type);
