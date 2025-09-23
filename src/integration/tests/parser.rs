@@ -1,7 +1,6 @@
 use generated::health::{AppHealthRequest, AppHealthResponse};
 use generated::parser::{Chain, ParseRequest};
 use integration::TestArgs;
-use tracing;
 
 /// Recursively validates that all fields in expected are present in actual
 /// This catches missing fields but allows extra fields in actual implementation.
