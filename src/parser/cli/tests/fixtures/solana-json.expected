@@ -18,7 +18,7 @@
     },
     {
       "Type": "text_v2",
-      "FallbackText": "Transfer 1: B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY -> 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara: 10000000000",
+      "FallbackText": "Transfer 1: From B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY To 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara For 10000000000",
       "Label": "Transfer 1",
       "TextV2": {
         "Text": "From: B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY\nTo: 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara\nAmount: 10000000000"
@@ -26,7 +26,7 @@
     },
     {
       "Type": "text_v2",
-      "FallbackText": "Transfer 2: B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY -> ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49: 10000",
+      "FallbackText": "Transfer 2: From B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY To ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49 For 10000",
       "Label": "Transfer 2",
       "TextV2": {
         "Text": "From: B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY\nTo: ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49\nAmount: 10000"

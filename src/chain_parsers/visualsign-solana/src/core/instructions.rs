@@ -94,7 +94,7 @@ pub fn decode_transfers(
                     signable_payload_field: visualsign::SignablePayloadField::TextV2 {
                         common: visualsign::SignablePayloadFieldCommon {
                             fallback_text: format!(
-                                "Transfer {}: {} -> {}: {}",
+                                "Transfer {}: From {} To {} For {}",
                                 i + 1,
                                 transfer.from,
                                 transfer.to,
@@ -122,7 +122,7 @@ pub fn decode_transfers(
                     signable_payload_field: visualsign::SignablePayloadField::TextV2 {
                         common: visualsign::SignablePayloadFieldCommon {
                             fallback_text: format!(
-                                "SPL Transfer {}: {} -> {}: {}",
+                                "SPL Transfer {}: From {} To {} For {}",
                                 i + 1,
                                 spl_transfer.from,
                                 spl_transfer.to,

@@ -194,7 +194,7 @@ async fn parser_solana_native_transfer_e2e() {
                 },
                 {
                     "Type": "text_v2",
-                    "FallbackText": "Transfer 1: HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD -> 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73: 1000000000",
+                    "FallbackText": "Transfer 1: From HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD To 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73 For 1000000000",
                     "Label": "Transfer 1",
                     "TextV2": {
                         "Text": "From: HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD\nTo: 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73\nAmount: 1000000000"
