@@ -36,12 +36,6 @@
       "FallbackText": "Program ID: 11111111111111111111111111111111\nData: 0200000000e40b5402000000",
       "Label": "Instruction 1",
       "PreviewLayout": {
-        "Title": {
-          "Text": "Transfer: 10000000000 lamports"
-        },
-        "Subtitle": {
-          "Text": ""
-        },
         "Condensed": {
           "Fields": [
             {
@@ -66,8 +60,8 @@
             },
             {
               "AmountV2": {
-                "Amount": "10000000000",
-                "Abbreviation": "lamports"
+                "Abbreviation": "lamports",
+                "Amount": "10000000000"
               },
               "FallbackText": "10 SOL",
               "Label": "Transfer Amount",
@@ -82,6 +76,12 @@
               "Type": "text_v2"
             }
           ]
+        },
+        "Subtitle": {
+          "Text": ""
+        },
+        "Title": {
+          "Text": "Transfer: 10000000000 lamports"
         }
       },
       "Type": "preview_layout"
@@ -90,12 +90,6 @@
       "FallbackText": "Program ID: ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL\nData: 01",
       "Label": "Instruction 2",
       "PreviewLayout": {
-        "Title": {
-          "Text": "Create Associated Token Account (Idempotent)"
-        },
-        "Subtitle": {
-          "Text": ""
-        },
         "Condensed": {
           "Fields": [
             {
@@ -127,6 +121,12 @@
               "Type": "text_v2"
             }
           ]
+        },
+        "Subtitle": {
+          "Text": ""
+        },
+        "Title": {
+          "Text": "Create Associated Token Account (Idempotent)"
         }
       },
       "Type": "preview_layout"
@@ -135,12 +135,6 @@
       "FallbackText": "Program ID: SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy\nData: 0e00e40b5402000000",
       "Label": "Instruction 3",
       "PreviewLayout": {
-        "Title": {
-          "Text": "Stake Pool Instruction: Deposit SOL"
-        },
-        "Subtitle": {
-          "Text": ""
-        },
         "Condensed": {
           "Fields": [
             {
@@ -164,6 +158,12 @@
               "Type": "text_v2"
             }
           ]
+        },
+        "Subtitle": {
+          "Text": ""
+        },
+        "Title": {
+          "Text": "Stake Pool Instruction: Deposit SOL"
         }
       },
       "Type": "preview_layout"
@@ -172,12 +172,6 @@
       "FallbackText": "Program ID: ComputeBudget111111111111111111111111111111\nData: 02801a0600",
       "Label": "Instruction 4",
       "PreviewLayout": {
-        "Title": {
-          "Text": "Set Compute Unit Limit: 400000 units"
-        },
-        "Subtitle": {
-          "Text": ""
-        },
         "Condensed": {
           "Fields": [
             {
@@ -217,6 +211,12 @@
               "Type": "text_v2"
             }
           ]
+        },
+        "Subtitle": {
+          "Text": ""
+        },
+        "Title": {
+          "Text": "Set Compute Unit Limit: 400000 units"
         }
       },
       "Type": "preview_layout"
@@ -225,12 +225,6 @@
       "FallbackText": "Program ID: ComputeBudget111111111111111111111111111111\nData: 0350c3000000000000",
       "Label": "Instruction 5",
       "PreviewLayout": {
-        "Title": {
-          "Text": "Set Compute Unit Price: 50000 micro-lamports per compute unit"
-        },
-        "Subtitle": {
-          "Text": ""
-        },
         "Condensed": {
           "Fields": [
             {
@@ -270,6 +264,12 @@
               "Type": "text_v2"
             }
           ]
+        },
+        "Subtitle": {
+          "Text": ""
+        },
+        "Title": {
+          "Text": "Set Compute Unit Price: 50000 micro-lamports per compute unit"
         }
       },
       "Type": "preview_layout"
@@ -278,12 +278,6 @@
       "FallbackText": "Program ID: 11111111111111111111111111111111\nData: 020000001027000000000000",
       "Label": "Instruction 6",
       "PreviewLayout": {
-        "Title": {
-          "Text": "Transfer: 10000 lamports"
-        },
-        "Subtitle": {
-          "Text": ""
-        },
         "Condensed": {
           "Fields": [
             {
@@ -308,8 +302,8 @@
             },
             {
               "AmountV2": {
-                "Amount": "10000",
-                "Abbreviation": "lamports"
+                "Abbreviation": "lamports",
+                "Amount": "10000"
               },
               "FallbackText": "0.00001 SOL",
               "Label": "Transfer Amount",
@@ -324,6 +318,12 @@
               "Type": "text_v2"
             }
           ]
+        },
+        "Subtitle": {
+          "Text": ""
+        },
+        "Title": {
+          "Text": "Transfer: 10000 lamports"
         }
       },
       "Type": "preview_layout"

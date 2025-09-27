@@ -1,9 +1,23 @@
 # Visual Sign Protocol Documentation
 This document provides specifications for the Visual Sign Protocol (VSP), a structured format for displaying transaction details to users for approval. The VSP is designed to present meaningful, human-readable information about operations requiring signatures.
 
+## Important Concepts
+
+### Non-Canonical Format
+**The SignablePayload JSON format is NOT canonical.** It should be treated by signers as an **opaque string field**. While we maintain deterministic ordering (currently alphabetical) for debugging consistency and cross-implementation compatibility, this is an implementation detail that may change. Signers should not parse or depend on the specific JSON structure or field ordering.
+
+### Display Requirements for Implementers
+Display elements (wallets, signing interfaces) are responsible for:
+- **Parsing and interpreting** the SignablePayload to determine what to show users
+- **Ensuring all fields are displayed** - Every field in the payload MUST be shown to the user
+- **Minimum display guarantee** - At the very least, the `FallbackText` for each field must be displayed
+- **Making display decisions** - The display element decides how to render fields (layout, styling, grouping)
+- **Respecting user preferences** - Honor accessibility settings and display preferences
+
 **Notes**
-* We don't use v1 text field types, but they're around for backwards compatibilty for now
+* We don't use v1 text field types, but they're around for backwards compatibility for now
 * AnnotatedFields are a layer on top of SignablePayload field for our wallet to provide more context, it's not in scope of the SignablePayload, it's still in structs but we'll consider removing in future
+* Field ordering is deterministic but not guaranteed to be alphabetical in future versions - see [Deterministic Ordering Documentation](docs/DETERMINISTIC_ORDERING.md)
 
 ## SignablePayload
 A SignablePayload is the core structure that defines what is displayed to the user during the signing process. It contains metadata about the transaction and a collection of fields representing the transaction details.
@@ -262,7 +276,7 @@ The VisualSign Protocol is designed to be extensible, allowing developers to saf
 
 ### Architecture Overview
 
-The field serialization system uses a **trait-based architecture with runtime verification** that provides multiple layers of protection against incomplete implementations:
+The field serialization system uses a **trait-based architecture with compile-time and runtime verification** that provides multiple layers of protection against incomplete implementations:
 
 ```rust
 trait FieldSerializer {
@@ -273,8 +287,9 @@ trait FieldSerializer {
 
 ### Key Features
 
+- **⚙️ Compile-Time Enforcement**: `DeterministicOrdering` trait ensures types implement deterministic serialization
 - **🔒 Runtime Verification**: Automatically verifies all expected fields are present during serialization
-- **📝 Alphabetical Ordering**: Fields are automatically sorted alphabetically for consistent output
+- **📝 Deterministic Ordering**: Fields are automatically sorted deterministically (currently alphabetically) for consistent output
 - **🚨 Error Detection**: Missing or unexpected fields cause immediate serialization failure with detailed error messages
 - **🧪 Test-Driven**: Comprehensive test suite proves the verification system works correctly
 - **🔄 Extensible**: Adding new field types is straightforward and safe
@@ -363,6 +378,17 @@ impl SignablePayloadField {
 }
 ```
 
+#### 5. Implement DeterministicOrdering Trait
+
+**Critical**: Your new field type must implement the `DeterministicOrdering` trait to be usable in contexts requiring deterministic serialization:
+
+```rust
+// This is already implemented for SignablePayloadField, but if creating a new top-level type:
+impl DeterministicOrdering for YourNewType {}
+```
+
+Without this implementation, the type cannot be used in functions requiring deterministic ordering, and compilation will fail with a clear error message.
+
 ### Runtime Verification System
 
 The system automatically verifies field completeness during serialization:
@@ -419,24 +445,25 @@ fn test_new_field_type() {
 ### Benefits of This Approach
 
 1. **🛡️ Defense in Depth**:
-   - **Compile-time**: Exhaustive pattern matching ensures all variants are handled
+   - **Compile-time**: Exhaustive pattern matching ensures all variants are handled, `DeterministicOrdering` trait enforces proper implementation
    - **Runtime**: Field verification catches missing/incorrect fields
    - **Test-time**: Comprehensive tests prove the system works
 
 2. **🔍 Clear Error Messages**:
-   - Missing fields are immediately identified with specific field names
+   - Missing `DeterministicOrdering` trait causes compile-time error with clear message
+   - Missing fields are immediately identified with specific field names at runtime
    - Unexpected fields are caught and reported
    - Detailed error context helps debugging
 
 3. **📊 Consistent Output**:
-   - All fields automatically ordered alphabetically
+   - All fields automatically ordered deterministically (currently alphabetically)
    - Consistent JSON structure across all field types
    - Backward compatibility maintained
 
 4. **🚀 Easy Extension**:
    - Adding new field types requires minimal code changes
    - Macro-based approach reduces boilerplate
-   - Impossible to miss required implementation steps
+   - Compile-time checking makes it impossible to miss required implementation steps
 
 ### Migration from Legacy Approach
 

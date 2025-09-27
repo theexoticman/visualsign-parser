@@ -9,6 +9,77 @@ pub mod registry;
 pub mod test_utils;
 pub mod vsptrait;
 
+// Marker trait to ensure types implement deterministic ordering in their serialization
+// Types that implement this trait guarantee their JSON serialization has a deterministic,
+// reproducible field order (currently implemented as alphabetical ordering)
+pub trait DeterministicOrdering: Serialize {
+    // This method can be used to verify at runtime that the implementation maintains
+    // deterministic ordering (currently alphabetical, but this is an implementation detail)
+    fn verify_deterministic_ordering(&self) -> Result<(), String> {
+        let json = serde_json::to_value(self).map_err(|e| e.to_string())?;
+        // Currently we use alphabetical ordering as our deterministic strategy
+        verify_json_deterministic(&json, "")
+    }
+}
+
+// This macro would ideally be a procedural macro that generates both Serialize impl
+// and DeterministicOrdering impl, ensuring they're always in sync
+// For now, this is a declarative macro that helps document the pattern
+#[macro_export]
+macro_rules! impl_deterministic_serialize {
+    ($type:ty) => {
+        // This would be where the procedural macro generates the Serialize impl
+        // with guaranteed deterministic ordering
+        impl DeterministicOrdering for $type {}
+    };
+}
+
+// Static assertion helper - this ensures at compile time that a type implements the trait
+pub struct StaticAssertDeterministic<T: DeterministicOrdering>(std::marker::PhantomData<T>);
+
+// Function that can be used in const contexts to verify trait implementation at compile time
+pub const fn assert_deterministic<T: DeterministicOrdering>() -> StaticAssertDeterministic<T> {
+    StaticAssertDeterministic(std::marker::PhantomData)
+}
+
+// Helper function to verify JSON has alphabetical ordering (current implementation of deterministic ordering)
+fn verify_json_deterministic(value: &serde_json::Value, path: &str) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(map) => {
+            let keys: Vec<_> = map.keys().cloned().collect();
+            let mut sorted_keys = keys.clone();
+            sorted_keys.sort();
+
+            if keys != sorted_keys {
+                return Err(format!(
+                    "Keys at path '{}' are not alphabetically ordered. Got: {:?}, Expected: {:?}",
+                    if path.is_empty() { "root" } else { path },
+                    keys,
+                    sorted_keys
+                ));
+            }
+
+            // Recursively check nested values
+            for (key, nested_value) in map {
+                let new_path = if path.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{}.{}", path, key)
+                };
+                verify_json_deterministic(nested_value, &new_path)?;
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for (i, item) in arr.iter().enumerate() {
+                let new_path = format!("{}[{}]", path, i);
+                verify_json_deterministic(item, &new_path)?;
+            }
+        }
+        _ => {} // Leaf nodes don't need checking
+    }
+    Ok(())
+}
+
 // A function to check if a string is empty (used for skip_serializing_if)
 fn is_empty_string(s: &str) -> bool {
     s.is_empty()
@@ -39,6 +110,9 @@ pub struct SignablePayloadFieldCommon {
     #[serde(rename = "Label")]
     pub label: String,
 }
+
+// Implement DeterministicOrdering for SignablePayloadFieldCommon
+impl DeterministicOrdering for SignablePayloadFieldCommon {}
 
 // Now SignablePayloadField is an enum with variants for each field type
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -289,6 +363,9 @@ impl Serialize for SignablePayloadField {
     }
 }
 
+// Implement DeterministicOrdering for SignablePayloadField since it has custom Serialize
+impl DeterministicOrdering for SignablePayloadField {}
+
 // Helper methods for the enum
 impl SignablePayloadField {
     pub fn fallback_text(&self) -> &String {
@@ -341,7 +418,7 @@ impl SignablePayloadField {
 }
 
 // Update all struct definitions to use String instead of NormalString
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldPreviewLayout {
     #[serde(rename = "Title", skip_serializing_if = "Option::is_none")]
     pub title: Option<SignablePayloadFieldTextV2>,
@@ -353,11 +430,62 @@ pub struct SignablePayloadFieldPreviewLayout {
     pub expanded: Option<SignablePayloadFieldListLayout>,
 }
 
+// Implement DeterministicOrdering for SignablePayloadFieldPreviewLayout
+impl DeterministicOrdering for SignablePayloadFieldPreviewLayout {}
+
+// Custom Serialize implementation for SignablePayloadFieldPreviewLayout to ensure alphabetical ordering
+impl Serialize for SignablePayloadFieldPreviewLayout {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Use BTreeMap to ensure alphabetical ordering
+        let mut map = std::collections::BTreeMap::new();
+
+        // Add fields in alphabetical order (BTreeMap will maintain this)
+        // Note: Order should be Condensed, Expanded, Subtitle, Title
+        if let Some(ref condensed) = self.condensed {
+            map.insert(
+                "Condensed",
+                serde_json::to_value(condensed).map_err(serde::ser::Error::custom)?,
+            );
+        }
+        if let Some(ref expanded) = self.expanded {
+            map.insert(
+                "Expanded",
+                serde_json::to_value(expanded).map_err(serde::ser::Error::custom)?,
+            );
+        }
+        if let Some(ref subtitle) = self.subtitle {
+            map.insert(
+                "Subtitle",
+                serde_json::to_value(subtitle).map_err(serde::ser::Error::custom)?,
+            );
+        }
+        if let Some(ref title) = self.title {
+            map.insert(
+                "Title",
+                serde_json::to_value(title).map_err(serde::ser::Error::custom)?,
+            );
+        }
+
+        // Serialize the map
+        let mut map_ser = serializer.serialize_map(Some(map.len()))?;
+        for (k, v) in map {
+            map_ser.serialize_entry(&k, &v)?;
+        }
+        map_ser.end()
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldListLayout {
     #[serde(rename = "Fields")]
     pub fields: Vec<AnnotatedPayloadField>,
 }
+
+// Implement DeterministicOrdering for SignablePayloadFieldListLayout
+impl DeterministicOrdering for SignablePayloadFieldListLayout {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldText {
@@ -365,11 +493,17 @@ pub struct SignablePayloadFieldText {
     pub text: String,
 }
 
+// Implement DeterministicOrdering for SignablePayloadFieldText
+impl DeterministicOrdering for SignablePayloadFieldText {}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldTextV2 {
     #[serde(rename = "Text")]
     pub text: String,
 }
+
+// Implement DeterministicOrdering for SignablePayloadFieldTextV2
+impl DeterministicOrdering for SignablePayloadFieldTextV2 {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldAddress {
@@ -378,6 +512,9 @@ pub struct SignablePayloadFieldAddress {
     #[serde(rename = "Name")]
     pub name: String,
 }
+
+// Implement DeterministicOrdering for SignablePayloadFieldAddress
+impl DeterministicOrdering for SignablePayloadFieldAddress {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldAddressV2 {
@@ -393,11 +530,17 @@ pub struct SignablePayloadFieldAddressV2 {
     pub badge_text: Option<String>,
 }
 
+// Implement DeterministicOrdering for SignablePayloadFieldAddressV2
+impl DeterministicOrdering for SignablePayloadFieldAddressV2 {}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldNumber {
     #[serde(rename = "Number")]
     pub number: String,
 }
+
+// Implement DeterministicOrdering for SignablePayloadFieldNumber
+impl DeterministicOrdering for SignablePayloadFieldNumber {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldAmount {
@@ -407,7 +550,10 @@ pub struct SignablePayloadFieldAmount {
     pub abbreviation: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+// Implement DeterministicOrdering for SignablePayloadFieldAmount
+impl DeterministicOrdering for SignablePayloadFieldAmount {}
+
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldAmountV2 {
     #[serde(rename = "Amount")]
     pub amount: String,
@@ -415,11 +561,33 @@ pub struct SignablePayloadFieldAmountV2 {
     pub abbreviation: Option<String>,
 }
 
+impl Serialize for SignablePayloadFieldAmountV2 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use std::collections::BTreeMap;
+
+        let mut map = BTreeMap::new();
+        map.insert("Amount", &self.amount);
+        if let Some(ref abbreviation) = self.abbreviation {
+            map.insert("Abbreviation", abbreviation);
+        }
+        map.serialize(serializer)
+    }
+}
+
+// Implement DeterministicOrdering for SignablePayloadFieldAmountV2
+impl DeterministicOrdering for SignablePayloadFieldAmountV2 {}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldDivider {
     #[serde(rename = "Style")]
     pub style: DividerStyle,
 }
+
+// Implement DeterministicOrdering for SignablePayloadFieldDivider
+impl DeterministicOrdering for SignablePayloadFieldDivider {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldUnknown {
@@ -429,13 +597,19 @@ pub struct SignablePayloadFieldUnknown {
     pub explanation: String,
 }
 
+// Implement DeterministicOrdering for SignablePayloadFieldUnknown
+impl DeterministicOrdering for SignablePayloadFieldUnknown {}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldStaticAnnotation {
     #[serde(rename = "Text")]
     pub text: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+// Implement DeterministicOrdering for SignablePayloadFieldStaticAnnotation
+impl DeterministicOrdering for SignablePayloadFieldStaticAnnotation {}
+
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SignablePayloadFieldDynamicAnnotation {
     #[serde(rename = "Type")]
     pub field_type: String,
@@ -444,6 +618,24 @@ pub struct SignablePayloadFieldDynamicAnnotation {
     #[serde(rename = "Params")]
     pub params: Vec<String>,
 }
+
+impl Serialize for SignablePayloadFieldDynamicAnnotation {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+
+        let mut map = serializer.serialize_map(Some(3))?;
+        map.serialize_entry("ID", &self.id)?;
+        map.serialize_entry("Params", &self.params)?;
+        map.serialize_entry("Type", &self.field_type)?;
+        map.end()
+    }
+}
+
+// Implement DeterministicOrdering for SignablePayloadFieldDynamicAnnotation
+impl DeterministicOrdering for SignablePayloadFieldDynamicAnnotation {}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct AnnotatedPayload {
@@ -457,7 +649,7 @@ pub struct AnnotatedPayload {
     pub fields: Option<Vec<AnnotatedPayloadField>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct AnnotatedPayloadField {
     #[serde(flatten)]
     pub signable_payload_field: SignablePayloadField,
@@ -465,6 +657,53 @@ pub struct AnnotatedPayloadField {
     pub static_annotation: Option<SignablePayloadFieldStaticAnnotation>,
     #[serde(rename = "DynamicAnnotation", skip_serializing_if = "Option::is_none")]
     pub dynamic_annotation: Option<SignablePayloadFieldDynamicAnnotation>,
+}
+
+// Implement DeterministicOrdering for AnnotatedPayloadField since it has custom Serialize
+impl DeterministicOrdering for AnnotatedPayloadField {}
+
+// Custom Serialize implementation for AnnotatedPayloadField to ensure alphabetical ordering
+impl Serialize for AnnotatedPayloadField {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // First, serialize the flattened SignablePayloadField to get its fields
+        let field_map = self
+            .signable_payload_field
+            .serialize_to_map()
+            .map_err(serde::ser::Error::custom)?;
+
+        // Create a BTreeMap to ensure alphabetical ordering
+        let mut sorted_map = std::collections::BTreeMap::new();
+
+        // Add all fields from the SignablePayloadField
+        for (key, value) in field_map {
+            sorted_map.insert(key, value);
+        }
+
+        // Add optional annotation fields if present
+        if let Some(ref static_annotation) = self.static_annotation {
+            sorted_map.insert(
+                "StaticAnnotation".to_string(),
+                serde_json::to_value(static_annotation).map_err(serde::ser::Error::custom)?,
+            );
+        }
+
+        if let Some(ref dynamic_annotation) = self.dynamic_annotation {
+            sorted_map.insert(
+                "DynamicAnnotation".to_string(),
+                serde_json::to_value(dynamic_annotation).map_err(serde::ser::Error::custom)?,
+            );
+        }
+
+        // Serialize the sorted map
+        let mut map_ser = serializer.serialize_map(Some(sorted_map.len()))?;
+        for (k, v) in sorted_map {
+            map_ser.serialize_entry(&k, &v)?;
+        }
+        map_ser.end()
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -482,6 +721,9 @@ impl DividerStyle {
     pub const THIN: DividerStyle = DividerStyle(String::new());
 }
 
+// Implement DeterministicOrdering for SignablePayload
+impl DeterministicOrdering for SignablePayload {}
+
 impl SignablePayload {
     pub fn new(
         version: i64,
@@ -497,6 +739,48 @@ impl SignablePayload {
             payload_type,
             fields,
         }
+    }
+
+    // This function enforces that fields must implement DeterministicOrdering at compile time
+    pub fn new_with_verified_fields<F>(
+        version: i64,
+        title: String,
+        subtitle: Option<String>,
+        fields: Vec<F>,
+        payload_type: String,
+    ) -> Self
+    where
+        F: Into<SignablePayloadField> + DeterministicOrdering,
+    {
+        SignablePayload {
+            version: version.to_string(),
+            title,
+            subtitle,
+            payload_type,
+            fields: fields.into_iter().map(Into::into).collect(),
+        }
+    }
+
+    // Helper function that ensures all nested types in a complex field structure implement DeterministicOrdering
+    pub fn verify_field_deterministic_ordering(field: &SignablePayloadField) -> Result<(), String> {
+        // This function compile-time enforces that all nested types implement DeterministicOrdering
+        // by calling verify_deterministic_ordering on each component
+        match field {
+            SignablePayloadField::PreviewLayout { preview_layout, .. } => {
+                preview_layout.verify_deterministic_ordering()?;
+                if let Some(ref condensed) = preview_layout.condensed {
+                    condensed.verify_deterministic_ordering()?;
+                }
+                if let Some(ref expanded) = preview_layout.expanded {
+                    expanded.verify_deterministic_ordering()?;
+                }
+            }
+            SignablePayloadField::ListLayout { list_layout, .. } => {
+                list_layout.verify_deterministic_ordering()?;
+            }
+            _ => {}
+        }
+        field.verify_deterministic_ordering()
     }
 
     pub fn to_json(&self) -> Result<String, Box<dyn std::error::Error>> {
@@ -779,9 +1063,9 @@ mod tests {
     }
 
     #[test]
-    fn test_extensibility_with_new_field_type() {
-        // This test demonstrates how easy it is to add a new field type
-        // by actually implementing and testing a new variant
+    fn test_extensibility_with_new_field_type_requires_deterministic_ordering() {
+        // This test demonstrates that new field types MUST implement DeterministicOrdering
+        // to be used in contexts requiring deterministic serialization
 
         // Define new field type structs (these would normally be added to the main code)
         #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
@@ -840,6 +1124,14 @@ mod tests {
             }
         }
 
+        // CRITICAL: To use this new type with deterministic ordering, we MUST implement the trait
+        impl DeterministicOrdering for ExtendedSignablePayloadField {}
+
+        // This function requires DeterministicOrdering - it won't compile without the impl above
+        fn require_deterministic<T: DeterministicOrdering>(field: &T) -> Result<(), String> {
+            field.verify_deterministic_ordering()
+        }
+
         // Test the new Currency field type
         let currency_field = ExtendedSignablePayloadField::Currency {
             common: SignablePayloadFieldCommon {
@@ -851,6 +1143,9 @@ mod tests {
                 symbol: "$".to_string(),
             },
         };
+
+        // This line will compile because ExtendedSignablePayloadField implements DeterministicOrdering
+        require_deterministic(&currency_field).unwrap();
 
         let json = serde_json::to_string(&currency_field).unwrap();
         println!("New Currency Field JSON: {}", json);
@@ -893,6 +1188,216 @@ mod tests {
         }
 
         println!("✅ Successfully demonstrated adding new field type with automatic alphabetical ordering!");
+        println!("✅ New field type MUST implement DeterministicOrdering to be used in deterministic contexts!");
+    }
+
+    #[test]
+    fn test_compile_time_error_without_deterministic_ordering() {
+        // This test demonstrates that forgetting to implement DeterministicOrdering
+        // will cause a compile-time error when trying to use the type in a deterministic context
+
+        // Define a BAD field type that uses default Serialize (no alphabetical ordering)
+        #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+        struct BadFieldType {
+            z_field: String, // Note: fields are named to be out of alphabetical order
+            a_field: String,
+            m_field: String,
+        }
+
+        // Create an enum variant with the bad field type
+        #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+        enum BadSignablePayloadField {
+            BadVariant {
+                common: SignablePayloadFieldCommon,
+                bad_field: BadFieldType,
+            },
+        }
+
+        // NOTE: We intentionally DO NOT implement DeterministicOrdering for BadSignablePayloadField
+        // impl DeterministicOrdering for BadSignablePayloadField {} // MISSING!
+
+        // This function requires DeterministicOrdering - used to demonstrate compile-time checking
+        // It's intentionally never called because calling it with BadSignablePayloadField would cause a compile error
+        #[allow(dead_code)]
+        fn process_field<T: DeterministicOrdering>(_field: &T) -> String {
+            "processed".to_string()
+        }
+
+        // Create an instance of the bad field
+        let bad_field = BadSignablePayloadField::BadVariant {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "bad".to_string(),
+                label: "Bad Field".to_string(),
+            },
+            bad_field: BadFieldType {
+                z_field: "z".to_string(),
+                a_field: "a".to_string(),
+                m_field: "m".to_string(),
+            },
+        };
+
+        // The following lines are COMMENTED OUT because they would cause a compile error:
+        // process_field(&bad_field);  // COMPILE ERROR: BadSignablePayloadField doesn't implement DeterministicOrdering
+
+        // This demonstrates the compile-time safety:
+        // 1. If you forget to implement DeterministicOrdering, you can't use the type where it's required
+        // 2. The compiler will tell you exactly what's wrong
+        // 3. You're forced to implement proper deterministic ordering before the code will compile
+
+        // Let's verify the bad field actually has non-deterministic ordering:
+        let json = serde_json::to_string(&bad_field).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        // Check that the fields are NOT alphabetically ordered (this is the problem we're preventing)
+        if let serde_json::Value::Object(map) = value {
+            if let Some(serde_json::Value::Object(bad_field_obj)) = map.get("bad_field") {
+                let keys: Vec<_> = bad_field_obj.keys().cloned().collect();
+                // Default serde ordering follows struct field order, not alphabetical
+                // So we expect: ["z_field", "a_field", "m_field"] not ["a_field", "m_field", "z_field"]
+                println!("Bad field keys (not alphabetical): {:?}", keys);
+                assert_ne!(
+                    keys,
+                    vec!["a_field", "m_field", "z_field"],
+                    "Fields should NOT be alphabetically ordered without custom Serialize"
+                );
+            }
+        }
+
+        println!("✅ Demonstrated that types without DeterministicOrdering can't be used in deterministic contexts!");
+    }
+
+    #[test]
+    fn test_new_field_type_workflow_with_deterministic_ordering() {
+        // This test shows the complete workflow for adding a new field type with deterministic ordering
+
+        // Step 1: Define the new field type's data structure
+        #[derive(Deserialize, Debug, Clone, PartialEq)]
+        struct GeoLocationField {
+            #[serde(rename = "Latitude")]
+            latitude: f64,
+            #[serde(rename = "Longitude")]
+            longitude: f64,
+            #[serde(rename = "Accuracy")]
+            accuracy: Option<f64>,
+        }
+
+        impl Serialize for GeoLocationField {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                use serde::ser::SerializeMap;
+
+                let mut map = serializer.serialize_map(Some(3))?;
+                if let Some(ref accuracy) = self.accuracy {
+                    map.serialize_entry("Accuracy", accuracy)?;
+                }
+                map.serialize_entry("Latitude", &self.latitude)?;
+                map.serialize_entry("Longitude", &self.longitude)?;
+                map.end()
+            }
+        }
+
+        // Step 2: Create the new variant for SignablePayloadField
+        #[derive(Debug, Clone, PartialEq)]
+        enum NewFieldVariant {
+            GeoLocation {
+                common: SignablePayloadFieldCommon,
+                location: GeoLocationField,
+            },
+        }
+
+        // Step 3: Implement custom Serialize with deterministic (alphabetical) ordering
+        impl Serialize for NewFieldVariant {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer,
+            {
+                match self {
+                    NewFieldVariant::GeoLocation { common, location } => {
+                        // Use BTreeMap to ensure alphabetical ordering
+                        let mut map = std::collections::BTreeMap::new();
+
+                        // Add common fields
+                        map.insert(
+                            "FallbackText",
+                            serde_json::to_value(&common.fallback_text).unwrap(),
+                        );
+                        map.insert("GeoLocation", serde_json::to_value(location).unwrap());
+                        map.insert("Label", serde_json::to_value(&common.label).unwrap());
+                        map.insert(
+                            "Type",
+                            serde_json::Value::String("geo_location".to_string()),
+                        );
+
+                        // Serialize with guaranteed alphabetical ordering
+                        let mut map_ser = serializer.serialize_map(Some(map.len()))?;
+                        for (k, v) in map {
+                            map_ser.serialize_entry(&k, &v)?;
+                        }
+                        map_ser.end()
+                    }
+                }
+            }
+        }
+
+        // Step 4: Implement DeterministicOrdering trait
+        impl DeterministicOrdering for NewFieldVariant {}
+
+        // Step 5: Create a function that requires deterministic ordering (simulating real usage)
+        fn add_to_payload<T: DeterministicOrdering>(field: T) -> Result<String, String> {
+            // This function can only accept types with deterministic ordering
+            field.verify_deterministic_ordering()?;
+            Ok("Field added to payload".to_string())
+        }
+
+        // Step 6: Test the new field type
+        let geo_field = NewFieldVariant::GeoLocation {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "37.7749° N, 122.4194° W".to_string(),
+                label: "Location".to_string(),
+            },
+            location: GeoLocationField {
+                latitude: 37.7749,
+                longitude: -122.4194,
+                accuracy: Some(10.0),
+            },
+        };
+
+        // This compiles and runs because NewFieldVariant implements DeterministicOrdering
+        let result = add_to_payload(geo_field.clone());
+        assert!(result.is_ok());
+
+        // Verify the JSON has alphabetical ordering
+        let json = serde_json::to_string(&geo_field).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        if let serde_json::Value::Object(map) = value {
+            let keys: Vec<_> = map.keys().cloned().collect();
+            assert_eq!(
+                keys,
+                vec!["FallbackText", "GeoLocation", "Label", "Type"],
+                "Fields must be in alphabetical order"
+            );
+
+            // Also check nested GeoLocation fields are alphabetical
+            if let Some(serde_json::Value::Object(geo_obj)) = map.get("GeoLocation") {
+                let geo_keys: Vec<_> = geo_obj.keys().cloned().collect();
+                assert_eq!(
+                    geo_keys,
+                    vec!["Accuracy", "Latitude", "Longitude"],
+                    "Nested fields must also be alphabetical"
+                );
+            }
+        }
+
+        println!("✅ Complete workflow demonstrated:");
+        println!("   1. Define new field type structure");
+        println!("   2. Create enum variant");
+        println!("   3. Implement custom Serialize with deterministic ordering");
+        println!("   4. Implement DeterministicOrdering trait");
+        println!("   5. Use in functions requiring deterministic ordering");
+        println!("   6. Verify JSON output has correct ordering");
     }
 
     #[test]
@@ -1421,6 +1926,503 @@ mod tests {
         // this is more to ensure that engineer isn't changing the order of fields
         let serde_default_json = serde_json::to_string(&payload).unwrap();
         assert_sorted_alphabetically(serde_default_json);
+    }
+
+    #[test]
+    fn test_compile_time_deterministic_ordering_enforcement() {
+        // This test verifies that our key types implement DeterministicOrdering trait
+        // If any type is missing the implementation, this will fail at compile time
+
+        fn assert_deterministic_ordering<T: DeterministicOrdering>(_: &T) {}
+
+        // Test all leaf types that make up SignablePayloadField values
+        let text_v2 = SignablePayloadFieldTextV2 {
+            text: "Value".to_string(),
+        };
+        assert_deterministic_ordering(&text_v2);
+
+        let address = SignablePayloadFieldAddress {
+            address: "0x123".to_string(),
+            name: "Test".to_string(),
+        };
+        assert_deterministic_ordering(&address);
+
+        let amount_v2 = SignablePayloadFieldAmountV2 {
+            amount: "100".to_string(),
+            abbreviation: Some("USD".to_string()),
+        };
+        assert_deterministic_ordering(&amount_v2);
+
+        // Test layout types
+        let preview_layout = SignablePayloadFieldPreviewLayout {
+            title: Some(text_v2.clone()),
+            subtitle: None,
+            condensed: Some(SignablePayloadFieldListLayout { fields: vec![] }),
+            expanded: None,
+        };
+        assert_deterministic_ordering(&preview_layout);
+
+        let list_layout = SignablePayloadFieldListLayout { fields: vec![] };
+        assert_deterministic_ordering(&list_layout);
+
+        // Test annotation types
+        let static_annotation = SignablePayloadFieldStaticAnnotation {
+            text: "Note".to_string(),
+        };
+        assert_deterministic_ordering(&static_annotation);
+
+        let dynamic_annotation = SignablePayloadFieldDynamicAnnotation {
+            field_type: "type".to_string(),
+            id: "id".to_string(),
+            params: vec![],
+        };
+        assert_deterministic_ordering(&dynamic_annotation);
+
+        // Test SignablePayloadField
+        let field = SignablePayloadField::TextV2 {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "Test".to_string(),
+                label: "Label".to_string(),
+            },
+            text_v2: text_v2.clone(),
+        };
+        assert_deterministic_ordering(&field);
+
+        // Test AnnotatedPayloadField
+        let annotated = AnnotatedPayloadField {
+            signable_payload_field: field.clone(),
+            static_annotation: Some(static_annotation),
+            dynamic_annotation: Some(dynamic_annotation),
+        };
+        assert_deterministic_ordering(&annotated);
+
+        // Test SignablePayload
+        let payload = SignablePayload::new(
+            1,
+            "Title".to_string(),
+            None,
+            vec![field.clone()],
+            "Type".to_string(),
+        );
+        assert_deterministic_ordering(&payload);
+
+        // Verify runtime deterministic ordering for complex nested structure
+        let complex_field = SignablePayloadField::PreviewLayout {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "Preview".to_string(),
+                label: "Complex".to_string(),
+            },
+            preview_layout,
+        };
+        assert_deterministic_ordering(&complex_field);
+        assert!(complex_field.verify_deterministic_ordering().is_ok());
+    }
+
+    #[test]
+    fn test_annotated_payload_field_alphabetical_ordering() {
+        // Test that AnnotatedPayloadField maintains alphabetical ordering of all its fields
+        // including when SignablePayloadField is flattened
+
+        // Test 1: AnnotatedPayloadField with all annotations
+        let annotated_field = AnnotatedPayloadField {
+            signable_payload_field: SignablePayloadField::AmountV2 {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: "100 USD".to_string(),
+                    label: "Amount".to_string(),
+                },
+                amount_v2: SignablePayloadFieldAmountV2 {
+                    amount: "100".to_string(),
+                    abbreviation: Some("USD".to_string()),
+                },
+            },
+            static_annotation: Some(SignablePayloadFieldStaticAnnotation {
+                text: "Note: This is a test".to_string(),
+            }),
+            dynamic_annotation: Some(SignablePayloadFieldDynamicAnnotation {
+                field_type: "test_type".to_string(),
+                id: "test_id".to_string(),
+                params: vec!["param1".to_string()],
+            }),
+        };
+
+        let json = serde_json::to_string(&annotated_field).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_json_keys_alphabetical(&value, "AnnotatedPayloadField with all annotations");
+
+        // Test 2: AnnotatedPayloadField without annotations
+        let annotated_field_no_annotations = AnnotatedPayloadField {
+            signable_payload_field: SignablePayloadField::TextV2 {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: "Test Text".to_string(),
+                    label: "Test Label".to_string(),
+                },
+                text_v2: SignablePayloadFieldTextV2 {
+                    text: "Hello World".to_string(),
+                },
+            },
+            static_annotation: None,
+            dynamic_annotation: None,
+        };
+
+        let json2 = serde_json::to_string(&annotated_field_no_annotations).unwrap();
+        let value2: serde_json::Value = serde_json::from_str(&json2).unwrap();
+
+        assert_json_keys_alphabetical(&value2, "AnnotatedPayloadField without annotations");
+
+        // Test 3: AnnotatedPayloadField with only static annotation
+        let annotated_field_static_only = AnnotatedPayloadField {
+            signable_payload_field: SignablePayloadField::Address {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: "0x123".to_string(),
+                    label: "Address".to_string(),
+                },
+                address: SignablePayloadFieldAddress {
+                    address: "0x123456".to_string(),
+                    name: "Test Address".to_string(),
+                },
+            },
+            static_annotation: Some(SignablePayloadFieldStaticAnnotation {
+                text: "Static annotation only".to_string(),
+            }),
+            dynamic_annotation: None,
+        };
+
+        let json3 = serde_json::to_string(&annotated_field_static_only).unwrap();
+        let value3: serde_json::Value = serde_json::from_str(&json3).unwrap();
+
+        assert_json_keys_alphabetical(&value3, "AnnotatedPayloadField with static annotation only");
+    }
+
+    #[test]
+    fn test_preview_layout_field_alphabetical_ordering() {
+        // Test that SignablePayloadFieldPreviewLayout maintains alphabetical ordering of its fields
+
+        // Create a PreviewLayout with all optional fields populated
+        let preview_layout = SignablePayloadFieldPreviewLayout {
+            title: Some(SignablePayloadFieldTextV2 {
+                text: "Test Title".to_string(),
+            }),
+            subtitle: Some(SignablePayloadFieldTextV2 {
+                text: "Test Subtitle".to_string(),
+            }),
+            condensed: Some(SignablePayloadFieldListLayout { fields: vec![] }),
+            expanded: Some(SignablePayloadFieldListLayout { fields: vec![] }),
+        };
+
+        // Serialize and check ordering
+        let json = serde_json::to_string(&preview_layout).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        if let serde_json::Value::Object(map) = value {
+            let keys: Vec<_> = map.keys().cloned().collect();
+
+            // Expected alphabetical order: Condensed, Expanded, Subtitle, Title
+            assert_eq!(
+                keys,
+                vec!["Condensed", "Expanded", "Subtitle", "Title"],
+                "PreviewLayout fields should be in alphabetical order"
+            );
+        }
+
+        // Test with only some fields populated
+        let partial_preview = SignablePayloadFieldPreviewLayout {
+            title: Some(SignablePayloadFieldTextV2 {
+                text: "Title Only".to_string(),
+            }),
+            subtitle: None,
+            condensed: Some(SignablePayloadFieldListLayout { fields: vec![] }),
+            expanded: None,
+        };
+
+        let json2 = serde_json::to_string(&partial_preview).unwrap();
+        let value2: serde_json::Value = serde_json::from_str(&json2).unwrap();
+
+        if let serde_json::Value::Object(map) = value2 {
+            let keys: Vec<_> = map.keys().cloned().collect();
+
+            // Should only have Condensed and Title, still alphabetical
+            assert_eq!(
+                keys,
+                vec!["Condensed", "Title"],
+                "Partial PreviewLayout fields should be in alphabetical order"
+            );
+        }
+
+        // Test PreviewLayout field within SignablePayloadField
+        let preview_field = SignablePayloadField::PreviewLayout {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "Preview".to_string(),
+                label: "Preview Field".to_string(),
+            },
+            preview_layout,
+        };
+
+        let json3 = serde_json::to_string(&preview_field).unwrap();
+        let value3: serde_json::Value = serde_json::from_str(&json3).unwrap();
+
+        // Check the outer field is alphabetical
+        if let serde_json::Value::Object(map) = &value3 {
+            let keys: Vec<_> = map.keys().cloned().collect();
+            let mut expected_keys = keys.clone();
+            expected_keys.sort();
+            assert_eq!(
+                keys, expected_keys,
+                "SignablePayloadField with PreviewLayout should have alphabetical keys"
+            );
+
+            // Check the inner PreviewLayout is alphabetical
+            if let Some(serde_json::Value::Object(preview_map)) = map.get("PreviewLayout") {
+                let inner_keys: Vec<_> = preview_map.keys().cloned().collect();
+                assert_eq!(
+                    inner_keys,
+                    vec!["Condensed", "Expanded", "Subtitle", "Title"],
+                    "Inner PreviewLayout should have alphabetical field ordering"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_annotated_payload_field_in_condensed_recursive_ordering() {
+        // Test that AnnotatedPayloadField maintains alphabetical ordering when nested
+        // within Condensed/Expanded sections of PreviewLayout
+
+        let condensed_fields = vec![
+            AnnotatedPayloadField {
+                signable_payload_field: SignablePayloadField::AmountV2 {
+                    common: SignablePayloadFieldCommon {
+                        fallback_text: "10 SOL".to_string(),
+                        label: "Transfer Amount".to_string(),
+                    },
+                    amount_v2: SignablePayloadFieldAmountV2 {
+                        amount: "10000000000".to_string(),
+                        abbreviation: Some("lamports".to_string()),
+                    },
+                },
+                static_annotation: Some(SignablePayloadFieldStaticAnnotation {
+                    text: "Fee warning".to_string(),
+                }),
+                dynamic_annotation: None,
+            },
+            AnnotatedPayloadField {
+                signable_payload_field: SignablePayloadField::TextV2 {
+                    common: SignablePayloadFieldCommon {
+                        fallback_text: "Test Text".to_string(),
+                        label: "Test Label".to_string(),
+                    },
+                    text_v2: SignablePayloadFieldTextV2 {
+                        text: "Hello World".to_string(),
+                    },
+                },
+                static_annotation: None,
+                dynamic_annotation: Some(SignablePayloadFieldDynamicAnnotation {
+                    field_type: "dynamic".to_string(),
+                    id: "id123".to_string(),
+                    params: vec![],
+                }),
+            },
+        ];
+
+        let preview_field = SignablePayloadField::PreviewLayout {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "Preview".to_string(),
+                label: "Preview Field".to_string(),
+            },
+            preview_layout: SignablePayloadFieldPreviewLayout {
+                title: Some(SignablePayloadFieldTextV2 {
+                    text: "Title Text".to_string(),
+                }),
+                subtitle: None,
+                condensed: Some(SignablePayloadFieldListLayout {
+                    fields: condensed_fields.clone(),
+                }),
+                expanded: Some(SignablePayloadFieldListLayout {
+                    fields: vec![AnnotatedPayloadField {
+                        signable_payload_field: SignablePayloadField::Number {
+                            common: SignablePayloadFieldCommon {
+                                fallback_text: "42".to_string(),
+                                label: "Number Field".to_string(),
+                            },
+                            number: SignablePayloadFieldNumber {
+                                number: "42".to_string(),
+                            },
+                        },
+                        static_annotation: None,
+                        dynamic_annotation: None,
+                    }],
+                }),
+            },
+        };
+
+        let json = serde_json::to_string(&preview_field).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        // Recursively check all JSON objects for alphabetical key ordering
+        assert_json_recursive_alphabetical(&value, "");
+    }
+
+    // Helper function to check if JSON object keys are alphabetically ordered
+    fn assert_json_keys_alphabetical(value: &serde_json::Value, context: &str) {
+        if let serde_json::Value::Object(map) = value {
+            let keys: Vec<_> = map.keys().cloned().collect();
+            let mut expected_keys = keys.clone();
+            expected_keys.sort();
+
+            assert_eq!(
+                keys, expected_keys,
+                "{} should have alphabetically ordered keys. Got: {:?}, Expected: {:?}",
+                context, keys, expected_keys
+            );
+        }
+    }
+
+    // Helper function to recursively check all JSON objects for alphabetical key ordering
+    fn assert_json_recursive_alphabetical(value: &serde_json::Value, path: &str) {
+        match value {
+            serde_json::Value::Object(map) => {
+                // Check current object's keys
+                let keys: Vec<_> = map.keys().cloned().collect();
+                let mut expected_keys = keys.clone();
+                expected_keys.sort();
+
+                assert_eq!(
+                    keys, expected_keys,
+                    "Object at path '{}' should have alphabetically ordered keys. Got: {:?}, Expected: {:?}",
+                    if path.is_empty() { "root" } else { path },
+                    keys, expected_keys
+                );
+
+                // Recursively check nested values
+                for (key, nested_value) in map {
+                    let new_path = if path.is_empty() {
+                        key.clone()
+                    } else {
+                        format!("{}.{}", path, key)
+                    };
+                    assert_json_recursive_alphabetical(nested_value, &new_path);
+                }
+            }
+            serde_json::Value::Array(arr) => {
+                // Recursively check array elements
+                for (i, item) in arr.iter().enumerate() {
+                    let new_path = format!("{}[{}]", path, i);
+                    assert_json_recursive_alphabetical(item, &new_path);
+                }
+            }
+            _ => {} // Leaf nodes (strings, numbers, etc.) don't need checking
+        }
+    }
+
+    #[test]
+    fn test_deterministic_ordering_consistency() {
+        // This test verifies that ALL types in the system implement DeterministicOrdering consistently
+        // and that complex nested structures maintain deterministic ordering throughout
+
+        // Create a complex nested structure using all field types
+        let preview_field = SignablePayloadField::PreviewLayout {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "Complex Preview".to_string(),
+                label: "Preview".to_string(),
+            },
+            preview_layout: SignablePayloadFieldPreviewLayout {
+                title: Some(SignablePayloadFieldTextV2 {
+                    text: "Title".to_string(),
+                }),
+                subtitle: Some(SignablePayloadFieldTextV2 {
+                    text: "Subtitle".to_string(),
+                }),
+                condensed: Some(SignablePayloadFieldListLayout {
+                    fields: vec![AnnotatedPayloadField {
+                        signable_payload_field: SignablePayloadField::AmountV2 {
+                            common: SignablePayloadFieldCommon {
+                                fallback_text: "100 USD".to_string(),
+                                label: "Amount".to_string(),
+                            },
+                            amount_v2: SignablePayloadFieldAmountV2 {
+                                amount: "100".to_string(),
+                                abbreviation: Some("USD".to_string()),
+                            },
+                        },
+                        static_annotation: Some(SignablePayloadFieldStaticAnnotation {
+                            text: "Fee".to_string(),
+                        }),
+                        dynamic_annotation: None,
+                    }],
+                }),
+                expanded: Some(SignablePayloadFieldListLayout {
+                    fields: vec![AnnotatedPayloadField {
+                        signable_payload_field: SignablePayloadField::AddressV2 {
+                            common: SignablePayloadFieldCommon {
+                                fallback_text: "0x123".to_string(),
+                                label: "Address".to_string(),
+                            },
+                            address_v2: SignablePayloadFieldAddressV2 {
+                                address: "0x123456".to_string(),
+                                name: "".to_string(),
+                                memo: None,
+                                asset_label: "".to_string(),
+                                badge_text: Some("Verified".to_string()),
+                            },
+                        },
+                        static_annotation: None,
+                        dynamic_annotation: Some(SignablePayloadFieldDynamicAnnotation {
+                            field_type: "address".to_string(),
+                            id: "addr_1".to_string(),
+                            params: vec!["param1".to_string()],
+                        }),
+                    }],
+                }),
+            },
+        };
+
+        // Verify the field and all its nested components implement DeterministicOrdering
+        let result = SignablePayload::verify_field_deterministic_ordering(&preview_field);
+        assert!(
+            result.is_ok(),
+            "Complex field should verify deterministic ordering"
+        );
+
+        // Serialize and verify the entire structure maintains alphabetical ordering
+        let json = serde_json::to_string(&preview_field).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        // Use recursive verification to ensure ALL nested objects are alphabetically ordered
+        assert_json_recursive_alphabetical(&value, "");
+
+        // Create a payload with the complex field
+        let payload = SignablePayload::new(
+            1,
+            "Test Payload".to_string(),
+            Some("With complex fields".to_string()),
+            vec![preview_field],
+            "test".to_string(),
+        );
+
+        // Verify the entire payload maintains deterministic ordering
+        assert!(payload.verify_deterministic_ordering().is_ok());
+
+        // Compile-time verification that all types can be used in deterministic contexts
+        fn require_deterministic<T: DeterministicOrdering>(_: &T) {}
+
+        // These will all compile because ALL types implement DeterministicOrdering
+        require_deterministic(&SignablePayloadFieldTextV2 {
+            text: "".to_string(),
+        });
+        require_deterministic(&SignablePayloadFieldAmountV2 {
+            amount: "".to_string(),
+            abbreviation: None,
+        });
+        require_deterministic(&SignablePayloadFieldPreviewLayout {
+            title: None,
+            subtitle: None,
+            condensed: None,
+            expanded: None,
+        });
+        require_deterministic(&SignablePayloadFieldListLayout { fields: vec![] });
+        require_deterministic(&payload);
+
+        println!("✅ All types consistently implement DeterministicOrdering!");
     }
 
     fn assert_sorted_alphabetically(json: String) {
