@@ -46,17 +46,35 @@ pub fn decode_accounts(message: &Message) -> Result<Vec<SolanaAccountInfo>, Visu
         })
         .collect();
 
-    // Sort accounts: signers first, then signer+writable, then everything else
+    // Sort according to Solana specification:
+    // 1. Accounts that are writable and signers
+    // 2. Accounts that are read-only and signers
+    // 3. Accounts that are writable and not signers
+    // 4. Accounts that are read-only and not signers
     accounts.sort_by(|a, b| {
-        match (a.is_signer, a.is_writable, b.is_signer, b.is_writable) {
-            // Both signers - prioritize signer+writable over signer-only
-            (true, true, true, false) => std::cmp::Ordering::Less,
-            (true, false, true, true) => std::cmp::Ordering::Greater,
-            // Signer vs non-signer - signer always wins
-            (true, _, false, _) => std::cmp::Ordering::Less,
-            (false, _, true, _) => std::cmp::Ordering::Greater,
-            // Same category - maintain original order
-            _ => a.original_index.cmp(&b.original_index),
+        let a_category = if a.is_signer && a.is_writable {
+            0 // writable signers
+        } else if a.is_signer && !a.is_writable {
+            1 // readonly signers
+        } else if !a.is_signer && a.is_writable {
+            2 // writable non-signers
+        } else {
+            3 // readonly non-signers
+        };
+
+        let b_category = if b.is_signer && b.is_writable {
+            0 // writable signers
+        } else if b.is_signer && !b.is_writable {
+            1 // readonly signers
+        } else if !b.is_signer && b.is_writable {
+            2 // writable non-signers
+        } else {
+            3 // readonly non-signers
+        };
+
+        match a_category.cmp(&b_category) {
+            std::cmp::Ordering::Equal => a.original_index.cmp(&b.original_index),
+            other => other,
         }
     });
 
@@ -98,17 +116,35 @@ pub fn decode_v0_accounts(
         })
         .collect();
 
-    // Sort accounts: signers first, then signer+writable, then everything else
+    // Sort according to Solana specification:
+    // 1. Accounts that are writable and signers
+    // 2. Accounts that are read-only and signers
+    // 3. Accounts that are writable and not signers
+    // 4. Accounts that are read-only and not signers
     accounts.sort_by(|a, b| {
-        match (a.is_signer, a.is_writable, b.is_signer, b.is_writable) {
-            // Both signers - prioritize signer+writable over signer-only
-            (true, true, true, false) => std::cmp::Ordering::Less,
-            (true, false, true, true) => std::cmp::Ordering::Greater,
-            // Signer vs non-signer - signer always wins
-            (true, _, false, _) => std::cmp::Ordering::Less,
-            (false, _, true, _) => std::cmp::Ordering::Greater,
-            // Same category - maintain original order
-            _ => a.original_index.cmp(&b.original_index),
+        let a_category = if a.is_signer && a.is_writable {
+            0 // writable signers
+        } else if a.is_signer && !a.is_writable {
+            1 // readonly signers
+        } else if !a.is_signer && a.is_writable {
+            2 // writable non-signers
+        } else {
+            3 // readonly non-signers
+        };
+
+        let b_category = if b.is_signer && b.is_writable {
+            0 // writable signers
+        } else if b.is_signer && !b.is_writable {
+            1 // readonly signers
+        } else if !b.is_signer && b.is_writable {
+            2 // writable non-signers
+        } else {
+            3 // readonly non-signers
+        };
+
+        match a_category.cmp(&b_category) {
+            std::cmp::Ordering::Equal => a.original_index.cmp(&b.original_index),
+            other => other,
         }
     });
 
@@ -207,13 +243,13 @@ mod tests {
 
     #[test]
     fn test_account_sorting() {
-        let account1 = Pubkey::new_unique(); // will be non-signer, writable
-        let account2 = Pubkey::new_unique(); // will be signer, readonly
-        let account3 = Pubkey::new_unique(); // will be signer, writable
-        let account4 = Pubkey::new_unique(); // will be non-signer, readonly
+        let account1 = Pubkey::new_unique(); // index 0: signer + writable
+        let account2 = Pubkey::new_unique(); // index 1: signer + readonly  
+        let account3 = Pubkey::new_unique(); // index 2: non-signer + writable
+        let account4 = Pubkey::new_unique(); // index 3: non-signer + readonly
 
-        // Create message: 2 signers (indices 2, 1), 1 readonly signed (index 1), 1 readonly unsigned (index 3)
-        // This means: index 0 = non-signer writable, index 1 = signer readonly, index 2 = signer writable, index 3 = non-signer readonly
+        // Create message: 2 signers (indices 0,1), 1 readonly signed (index 1), 1 readonly unsigned (index 3)
+        // This means: index 0 = signer writable, index 1 = signer readonly, index 2 = non-signer writable, index 3 = non-signer readonly
         let message = Message {
             header: MessageHeader {
                 num_required_signatures: 2,
@@ -227,8 +263,9 @@ mod tests {
 
         let accounts = decode_accounts(&message).unwrap();
 
-        // Should be sorted: signer+writable first, then signer+readonly, then non-signer+writable, then non-signer+readonly
-        // Expected order: index 0 (signer+writable), index 1 (signer+readonly), index 2 (non-signer+writable), index 3 (non-signer+readonly)
+        // Should be sorted according to Solana spec:
+        // 1. Writable signers, 2. Readonly signers, 3. Writable non-signers, 4. Readonly non-signers
+        // Expected order matches original since accounts are already in correct Solana spec order
 
         // First account should be signer+writable (original index 0)
         assert!(accounts[0].is_signer);
@@ -248,6 +285,52 @@ mod tests {
         // Fourth account should be non-signer+readonly (original index 3)
         assert!(!accounts[3].is_signer);
         assert!(!accounts[3].is_writable);
+        assert_eq!(accounts[3].original_index, 3);
+    }
+
+    #[test]
+    fn test_solana_spec_ordering() {
+        // Test accounts that start out of Solana spec order to verify sorting works
+        let account1 = Pubkey::new_unique(); // index 0: will be signer + writable
+        let account2 = Pubkey::new_unique(); // index 1: will be signer + readonly
+        let account3 = Pubkey::new_unique(); // index 2: will be non-signer + readonly  
+        let account4 = Pubkey::new_unique(); // index 3: will be non-signer + writable
+
+        // Deliberately arrange accounts in non-spec order to test sorting
+        let message = Message {
+            header: MessageHeader {
+                num_required_signatures: 2,        // indices 0,1 are signers
+                num_readonly_signed_accounts: 1,   // index 1 is readonly signer
+                num_readonly_unsigned_accounts: 1, // index 2 is readonly non-signer (index 3 is writable non-signer)
+            },
+            account_keys: vec![account1, account2, account3, account4],
+            recent_blockhash: Hash::new_unique(),
+            instructions: vec![],
+        };
+
+        let accounts = decode_accounts(&message).unwrap();
+
+        // Verify Solana specification ordering is achieved:
+        // Expected final order: writable signers, readonly signers, writable non-signers, readonly non-signers
+
+        // 1. Accounts that are writable and signers (account1 at original index 0)
+        assert!(accounts[0].is_signer && accounts[0].is_writable);
+        assert_eq!(accounts[0].address, account1.to_string());
+        assert_eq!(accounts[0].original_index, 0);
+
+        // 2. Accounts that are read-only and signers (account2 at original index 1)
+        assert!(accounts[1].is_signer && !accounts[1].is_writable);
+        assert_eq!(accounts[1].address, account2.to_string());
+        assert_eq!(accounts[1].original_index, 1);
+
+        // 3. Accounts that are writable and not signers (account3 at original index 2)
+        assert!(!accounts[2].is_signer && accounts[2].is_writable);
+        assert_eq!(accounts[2].address, account3.to_string());
+        assert_eq!(accounts[2].original_index, 2);
+
+        // 4. Accounts that are read-only and not signers (account4 at original index 3)
+        assert!(!accounts[3].is_signer && !accounts[3].is_writable);
+        assert_eq!(accounts[3].address, account4.to_string());
         assert_eq!(accounts[3].original_index, 3);
     }
 
