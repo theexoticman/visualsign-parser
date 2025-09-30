@@ -175,89 +175,114 @@ async fn parser_solana_native_transfer_e2e() {
 
         // this is currently optimized around just being able to copy the json output from parser as-is and pass the eye-test
         let expected_sp = serde_json::json!({
-            "Fields": [
-                {
-                    "Type": "text_v2",
-                    "FallbackText": "Solana",
-                    "Label": "Network",
-                    "TextV2": {
-                        "Text": "Solana"
+          "Fields": [
+            {
+              "FallbackText": "Solana",
+              "Label": "Network",
+              "TextV2": {
+                "Text": "Solana"
+              },
+              "Type": "text_v2"
+            },
+            {
+              "FallbackText": "Transfer 1: From HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD To 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73 For 1000000000",
+              "Label": "Transfer 1",
+              "TextV2": {
+                "Text": "From: HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD\nTo: 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73\nAmount: 1000000000"
+              },
+              "Type": "text_v2"
+            },
+            {
+              "FallbackText": "Program ID: 11111111111111111111111111111111\nData: 0200000000ca9a3b00000000",
+              "Label": "Instruction 1",
+              "PreviewLayout": {
+                "Condensed": {
+                  "Fields": [
+                    {
+                      "FallbackText": "Transfer: 1000000000 lamports",
+                      "Label": "Instruction",
+                      "TextV2": {
+                        "Text": "Transfer: 1000000000 lamports"
+                      },
+                      "Type": "text_v2"
                     }
+                  ]
                 },
-                {
-                    "Type": "text_v2",
-                    "FallbackText": "8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73, HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD, 11111111111111111111111111111111",
-                    "Label": "Account Keys",
-                    "TextV2": {
-                        "Text": "8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73, HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD, 11111111111111111111111111111111"
+                "Expanded": {
+                  "Fields": [
+                    {
+                      "FallbackText": "11111111111111111111111111111111",
+                      "Label": "Program ID",
+                      "TextV2": {
+                        "Text": "11111111111111111111111111111111"
+                      },
+                      "Type": "text_v2"
+                    },
+                    {
+                      "AmountV2": {
+                        "Abbreviation": "lamports",
+                        "Amount": "1000000000"
+                      },
+                      "FallbackText": "1 SOL",
+                      "Label": "Transfer Amount",
+                      "Type": "amount_v2"
+                    },
+                    {
+                      "FallbackText": "0200000000ca9a3b00000000",
+                      "Label": "Raw Data",
+                      "TextV2": {
+                        "Text": "0200000000ca9a3b00000000"
+                      },
+                      "Type": "text_v2"
                     }
+                  ]
                 },
-                {
-                    "Type": "text_v2",
-                    "FallbackText": "Transfer 1: From HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD To 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73 For 1000000000",
-                    "Label": "Transfer 1",
-                    "TextV2": {
-                        "Text": "From: HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD\nTo: 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73\nAmount: 1000000000"
-                    }
+                "Subtitle": {
+                  "Text": ""
                 },
-                {
-                    "Type": "preview_layout",
-                    "FallbackText": "Program ID: 11111111111111111111111111111111\nData: 0200000000ca9a3b00000000",
-                    "Label": "Instruction 1",
-                    "PreviewLayout": {
-                        "Title": {
-                            "Text": "Transfer: 1000000000 lamports"
-                        },
-                        "Subtitle": {
-                            "Text": ""
-                        },
-                        "Condensed": {
-                            "Fields": [
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "Transfer: 1000000000 lamports",
-                                    "Label": "Instruction",
-                                    "TextV2": {
-                                        "Text": "Transfer: 1000000000 lamports"
-                                    }
-                                }
-                            ]
-                        },
-                        "Expanded": {
-                            "Fields": [
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "11111111111111111111111111111111",
-                                    "Label": "Program ID",
-                                    "TextV2": {
-                                        "Text": "11111111111111111111111111111111"
-                                    }
-                                },
-                                {
-                                    "Type": "amount_v2",
-                                    "FallbackText": "1 SOL",
-                                    "Label": "Transfer Amount",
-                                    "AmountV2": {
-                                        "Amount": "1000000000",
-                                        "Abbreviation": "lamports"
-                                    }
-                                },
-                                {
-                                    "Type": "text_v2",
-                                    "FallbackText": "0200000000ca9a3b00000000",
-                                    "Label": "Raw Data",
-                                    "TextV2": {
-                                        "Text": "0200000000ca9a3b00000000"
-                                    }
-                                }
-                            ]
-                        }
-                    }
+                "Title": {
+                  "Text": "Transfer: 1000000000 lamports"
                 }
-            ],
-            "PayloadType": "SolanaTx",
-            "Title": "Solana Transaction",
-            "Version": "0"
+              },
+              "Type": "preview_layout"
+            },
+            {
+              "FallbackText": "3 accounts",
+              "Label": "Accounts",
+              "ListLayout": {
+                "Fields": [
+                  {
+                    "FallbackText": "Address: 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73, Signer, Writable",
+                    "Label": "Account",
+                    "TextV2": {
+                      "Text": "Address: 8jSCrV9xWkmMRSyf6xH3phL7SretagdqP3LRqkUYUp73, Signer, Writable"
+                    },
+                    "Type": "text_v2"
+                  },
+                  {
+                    "FallbackText": "Address: HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD, Signer, Writable",
+                    "Label": "Account",
+                    "TextV2": {
+                      "Text": "Address: HdD2N8HDzNEM6vwAq5mBLiUbgy1P9wyJfbASt93ndDsD, Signer, Writable"
+                    },
+                    "Type": "text_v2"
+                  },
+                  {
+                    "FallbackText": "Address: 11111111111111111111111111111111",
+                    "Label": "Account",
+                    "TextV2": {
+                      "Text": "Address: 11111111111111111111111111111111"
+                    },
+                    "Type": "text_v2"
+                  }
+                ]
+              },
+              "Type": "list_layout"
+            }
+          ],
+          "PayloadType": "SolanaTx",
+          "Title": "Solana Transaction",
+          "Version": "0"
         });
 
         // Verify the transaction contains Solana-specific fields

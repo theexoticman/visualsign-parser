@@ -5,10 +5,12 @@ use ::visualsign::errors::VisualSignError;
 use solana_parser::solana::structs::SolanaAccount;
 use solana_sdk::instruction::Instruction;
 
+mod accounts;
 mod instructions;
 mod txtypes;
 mod visualsign;
 
+pub use accounts::*;
 pub use instructions::*;
 pub use txtypes::*;
 pub use visualsign::*;

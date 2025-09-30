@@ -1,7 +1,7 @@
 //! System program preset for Solana
 
+mod account_labels;
 mod config;
-
 use crate::core::{
     InstructionVisualizer, SolanaIntegrationConfig, VisualizerContext, VisualizerKind,
 };
@@ -199,28 +199,15 @@ fn create_system_preview_layout(
         }
         _ => {
             // Handle other system instructions with basic layout
-            let instruction_name = match instruction {
-                SystemInstruction::Assign { .. } => "Assign Account",
-                SystemInstruction::Allocate { .. } => "Allocate Space",
-                SystemInstruction::InitializeNonceAccount(_) => "Initialize Nonce Account",
-                SystemInstruction::AuthorizeNonceAccount(_) => "Authorize Nonce Account",
-                SystemInstruction::AdvanceNonceAccount => "Advance Nonce Account",
-                SystemInstruction::WithdrawNonceAccount(_) => "Withdraw from Nonce Account",
-                SystemInstruction::CreateAccountWithSeed { .. } => "Create Account With Seed",
-                SystemInstruction::AllocateWithSeed { .. } => "Allocate With Seed",
-                SystemInstruction::AssignWithSeed { .. } => "Assign With Seed",
-                SystemInstruction::TransferWithSeed { .. } => "Transfer With Seed",
-                SystemInstruction::UpgradeNonceAccount => "Upgrade Nonce Account",
-                _ => "System Instruction",
-            };
+            let instruction_name = account_labels::system_instruction_label(instruction);
 
             let condensed_fields = vec![
-                create_text_field("Action", instruction_name)?,
+                create_text_field("Action", &instruction_name)?,
                 create_text_field("Program", "System Program")?,
             ];
 
             let expanded_fields = vec![
-                create_text_field("Action", instruction_name)?,
+                create_text_field("Action", &instruction_name)?,
                 create_text_field("Program", "System Program")?,
                 create_text_field("Instruction Data", &format!("{:?}", instruction))?,
             ];

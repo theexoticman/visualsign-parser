@@ -1,7 +1,7 @@
-use crate::core::instructions;
 use crate::core::txtypes::{
     create_address_lookup_table_field, decode_v0_instructions, decode_v0_transfers,
 };
+use crate::core::{accounts_to_payload_fields, decode_accounts, decode_v0_accounts, instructions};
 use base64::{self, Engine};
 use solana_sdk::{
     message::VersionedMessage,
@@ -150,32 +150,16 @@ fn convert_to_visual_sign_payload(
     title: Option<String>,
 ) -> Result<SignablePayload, VisualSignError> {
     let message = &transaction.message;
-    let account_keys: Vec<String> = message
-        .account_keys
-        .iter()
-        .map(|key| key.to_string())
-        .collect();
 
-    let mut fields = vec![
-        SignablePayloadField::TextV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: "Solana".to_string(),
-                label: "Network".to_string(),
-            },
-            text_v2: visualsign::SignablePayloadFieldTextV2 {
-                text: "Solana".to_string(),
-            },
+    let mut fields = vec![SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: "Solana".to_string(),
+            label: "Network".to_string(),
         },
-        SignablePayloadField::TextV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: account_keys.join(", "),
-                label: "Account Keys".to_string(),
-            },
-            text_v2: visualsign::SignablePayloadFieldTextV2 {
-                text: account_keys.join(", "),
-            },
+        text_v2: visualsign::SignablePayloadFieldTextV2 {
+            text: "Solana".to_string(),
         },
-    ];
+    }];
 
     if decode_transfers {
         let transfer_fields = instructions::decode_transfers(transaction)?;
@@ -192,6 +176,20 @@ fn convert_to_visual_sign_payload(
             .iter()
             .map(|e| e.signable_payload_field.clone()),
     );
+
+    // Decode and sort accounts using the dedicated function
+    let accounts = decode_accounts(message)?;
+
+    // Add Accounts field at the bottom
+    fields.push(SignablePayloadField::ListLayout {
+        common: SignablePayloadFieldCommon {
+            fallback_text: format!("{} accounts", accounts.len()),
+            label: "Accounts".to_string(),
+        },
+        list_layout: visualsign::SignablePayloadFieldListLayout {
+            fields: accounts_to_payload_fields(&accounts),
+        },
+    });
 
     Ok(SignablePayload::new(
         0,
@@ -231,32 +229,18 @@ fn convert_v0_to_visual_sign_payload(
     decode_transfers: bool,
     title: Option<String>,
 ) -> Result<SignablePayload, VisualSignError> {
-    let account_keys: Vec<String> = v0_message
-        .account_keys
-        .iter()
-        .map(|key| key.to_string())
-        .collect();
+    // Decode and sort accounts using the dedicated function
+    let accounts = decode_v0_accounts(v0_message)?;
 
-    let mut fields = vec![
-        SignablePayloadField::TextV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: "Solana (V0)".to_string(),
-                label: "Network".to_string(),
-            },
-            text_v2: visualsign::SignablePayloadFieldTextV2 {
-                text: "Solana (V0)".to_string(),
-            },
+    let mut fields = vec![SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: "Solana (V0)".to_string(),
+            label: "Network".to_string(),
         },
-        SignablePayloadField::TextV2 {
-            common: SignablePayloadFieldCommon {
-                fallback_text: account_keys.join(", "),
-                label: "Account Keys".to_string(),
-            },
-            text_v2: visualsign::SignablePayloadFieldTextV2 {
-                text: account_keys.join(", "),
-            },
+        text_v2: visualsign::SignablePayloadFieldTextV2 {
+            text: "Solana (V0)".to_string(),
         },
-    ];
+    }];
 
     // Add address lookup table information if present
     if !v0_message.address_table_lookups.is_empty() {
@@ -315,6 +299,33 @@ fn convert_v0_to_visual_sign_payload(
             }
         }
     }
+
+    // Add Accounts field at the bottom
+    fields.push(SignablePayloadField::ListLayout {
+        common: SignablePayloadFieldCommon {
+            fallback_text: format!("{} accounts", accounts.len()),
+            label: "Accounts".to_string(),
+        },
+        list_layout: visualsign::SignablePayloadFieldListLayout {
+            fields: accounts_to_payload_fields(&accounts),
+        },
+    });
+
+    // Add advanced field for all account keys (hidden/expandable)
+    let account_keys: Vec<String> = v0_message
+        .account_keys
+        .iter()
+        .map(|key| key.to_string())
+        .collect();
+    fields.push(SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: account_keys.join(", "),
+            label: "All Account Keys (Advanced)".to_string(),
+        },
+        text_v2: visualsign::SignablePayloadFieldTextV2 {
+            text: account_keys.join(", "),
+        },
+    });
 
     Ok(SignablePayload::new(
         0,
