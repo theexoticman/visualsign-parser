@@ -311,22 +311,6 @@ fn convert_v0_to_visual_sign_payload(
         },
     });
 
-    // Add advanced field for all account keys (hidden/expandable)
-    let account_keys: Vec<String> = v0_message
-        .account_keys
-        .iter()
-        .map(|key| key.to_string())
-        .collect();
-    fields.push(SignablePayloadField::TextV2 {
-        common: SignablePayloadFieldCommon {
-            fallback_text: account_keys.join(", "),
-            label: "All Account Keys (Advanced)".to_string(),
-        },
-        text_v2: visualsign::SignablePayloadFieldTextV2 {
-            text: account_keys.join(", "),
-        },
-    });
-
     Ok(SignablePayload::new(
         0,
         title.unwrap_or_else(|| "Solana V0 Transaction".to_string()),
