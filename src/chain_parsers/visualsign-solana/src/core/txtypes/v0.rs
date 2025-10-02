@@ -336,8 +336,20 @@ pub fn create_address_lookup_table_field(
             label: "Address Lookup Tables".to_string(),
         },
         preview_layout: SignablePayloadFieldPreviewLayout {
-            title: None,
-            subtitle: None,
+            title: Some(SignablePayloadFieldTextV2 {
+                text: "Address Lookup Tables".to_string(),
+            }),
+            subtitle: Some(SignablePayloadFieldTextV2 {
+                text: format!(
+                    "{} table{}",
+                    v0_message.address_table_lookups.len(),
+                    if v0_message.address_table_lookups.len() == 1 {
+                        ""
+                    } else {
+                        "s"
+                    }
+                ),
+            }),
             condensed: Some(condensed_list),
             expanded: Some(expanded_list),
         },

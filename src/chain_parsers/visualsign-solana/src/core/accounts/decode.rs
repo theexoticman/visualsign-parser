@@ -296,8 +296,16 @@ pub fn create_accounts_advanced_preview_layout(
             label: title.to_string(),
         },
         preview_layout: SignablePayloadFieldPreviewLayout {
-            title: None,
-            subtitle: None,
+            title: Some(visualsign::SignablePayloadFieldTextV2 {
+                text: title.to_string(),
+            }),
+            subtitle: Some(visualsign::SignablePayloadFieldTextV2 {
+                text: format!(
+                    "{} account{}",
+                    accounts.len(),
+                    if accounts.len() == 1 { "" } else { "s" }
+                ),
+            }),
             condensed: Some(condensed_list),
             expanded: Some(expanded_list),
         },
@@ -568,10 +576,18 @@ mod tests {
                 );
 
                 // Check preview layout structure
-                assert!(preview_layout.title.is_none());
-                assert!(preview_layout.subtitle.is_none());
+                assert!(preview_layout.title.is_some());
+                assert!(preview_layout.subtitle.is_some());
                 assert!(preview_layout.condensed.is_some());
                 assert!(preview_layout.expanded.is_some());
+
+                // Verify title and subtitle
+                if let Some(title) = &preview_layout.title {
+                    assert_eq!(title.text, "Test Accounts");
+                }
+                if let Some(subtitle) = &preview_layout.subtitle {
+                    assert_eq!(subtitle.text, "3 accounts");
+                }
 
                 // Check condensed view (should be summary)
                 let condensed_fields = &preview_layout.condensed.as_ref().unwrap().fields;
