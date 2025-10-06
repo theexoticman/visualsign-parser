@@ -486,196 +486,255 @@ SignablePayload {
                 ),
             },
         },
-        ListLayout {
+        PreviewLayout {
             common: SignablePayloadFieldCommon {
-                fallback_text: "14 accounts",
+                fallback_text: "B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY[SW], 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara[SW], 79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK[W], ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49[W], BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL[W], feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i[W], J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn[W], Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb[W], 11111111111111111111111111111111[R], 6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS[R], ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL[R], ComputeBudget111111111111111111111111111111[R], SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy[R], TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA[R]",
                 label: "Accounts",
             },
-            list_layout: SignablePayloadFieldListLayout {
-                fields: [
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY, Signer, Writable",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY, Signer, Writable",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
+            preview_layout: SignablePayloadFieldPreviewLayout {
+                title: Some(
+                    SignablePayloadFieldTextV2 {
+                        text: "Accounts",
                     },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara, Signer, Writable",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara, Signer, Writable",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
+                ),
+                subtitle: Some(
+                    SignablePayloadFieldTextV2 {
+                        text: "14 accounts",
                     },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: 79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK, Writable",
-                                label: "Account",
+                ),
+                condensed: Some(
+                    SignablePayloadFieldListLayout {
+                        fields: [
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "2 Signers",
+                                        label: "Signers",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "2 Signers",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
                             },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: 79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK, Writable",
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "6 Writable",
+                                        label: "Writable",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "6 Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
                             },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "6 Read Only",
+                                        label: "Read Only",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "6 Read Only",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                        ],
                     },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49, Writable",
-                                label: "Account",
+                ),
+                expanded: Some(
+                    SignablePayloadFieldListLayout {
+                        fields: [
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY, Signer, Writable",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY, Signer, Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
                             },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49, Writable",
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara, Signer, Writable",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara, Signer, Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
                             },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK, Writable",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK, Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49, Writable",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49, Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL, Writable",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL, Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i, Writable",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i, Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn, Writable",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn, Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb, Writable",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb, Writable",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "11111111111111111111111111111111",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "11111111111111111111111111111111",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "ComputeBudget111111111111111111111111111111",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "ComputeBudget111111111111111111111111111111",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                            AnnotatedPayloadField {
+                                signable_payload_field: TextV2 {
+                                    common: SignablePayloadFieldCommon {
+                                        fallback_text: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+                                        label: "Account",
+                                    },
+                                    text_v2: SignablePayloadFieldTextV2 {
+                                        text: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+                                    },
+                                },
+                                static_annotation: None,
+                                dynamic_annotation: None,
+                            },
+                        ],
                     },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL, Writable",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL, Writable",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i, Writable",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i, Writable",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn, Writable",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn, Writable",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb, Writable",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb, Writable",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: 11111111111111111111111111111111",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: 11111111111111111111111111111111",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: 6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: 6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: ComputeBudget111111111111111111111111111111",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: ComputeBudget111111111111111111111111111111",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                    AnnotatedPayloadField {
-                        signable_payload_field: TextV2 {
-                            common: SignablePayloadFieldCommon {
-                                fallback_text: "Address: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-                                label: "Account",
-                            },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: "Address: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-                            },
-                        },
-                        static_annotation: None,
-                        dynamic_annotation: None,
-                    },
-                ],
+                ),
             },
         },
     ],

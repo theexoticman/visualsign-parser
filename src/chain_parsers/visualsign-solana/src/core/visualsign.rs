@@ -1,7 +1,9 @@
 use crate::core::txtypes::{
     create_address_lookup_table_field, decode_v0_instructions, decode_v0_transfers,
 };
-use crate::core::{accounts_to_payload_fields, decode_accounts, decode_v0_accounts, instructions};
+use crate::core::{
+    create_accounts_advanced_preview_layout, decode_accounts, decode_v0_accounts, instructions,
+};
 use base64::{self, Engine};
 use solana_sdk::{
     message::VersionedMessage,
@@ -180,16 +182,10 @@ fn convert_to_visual_sign_payload(
     // Decode and sort accounts using the dedicated function
     let accounts = decode_accounts(message)?;
 
-    // Add Accounts field at the bottom
-    fields.push(SignablePayloadField::ListLayout {
-        common: SignablePayloadFieldCommon {
-            fallback_text: format!("{} accounts", accounts.len()),
-            label: "Accounts".to_string(),
-        },
-        list_layout: visualsign::SignablePayloadFieldListLayout {
-            fields: accounts_to_payload_fields(&accounts),
-        },
-    });
+    // we don't allow list layout at the top level - limitation of Anchorage app
+    let preview_layout_advanced = create_accounts_advanced_preview_layout("Accounts", &accounts)?;
+    // Add Accounts field at the bottom using PreviewLayout instead of ListLayout
+    fields.push(preview_layout_advanced);
 
     Ok(SignablePayload::new(
         0,
@@ -300,16 +296,9 @@ fn convert_v0_to_visual_sign_payload(
         }
     }
 
-    // Add Accounts field at the bottom
-    fields.push(SignablePayloadField::ListLayout {
-        common: SignablePayloadFieldCommon {
-            fallback_text: format!("{} accounts", accounts.len()),
-            label: "Accounts".to_string(),
-        },
-        list_layout: visualsign::SignablePayloadFieldListLayout {
-            fields: accounts_to_payload_fields(&accounts),
-        },
-    });
+    // Add Accounts field at the bottom using PreviewLayout instead of ListLayout
+    let preview_layout_advanced = create_accounts_advanced_preview_layout("Accounts", &accounts)?;
+    fields.push(preview_layout_advanced);
 
     Ok(SignablePayload::new(
         0,
@@ -533,9 +522,9 @@ mod tests {
         let field = create_address_lookup_table_field(&v0_message).unwrap();
 
         match field {
-            SignablePayloadField::ListLayout {
+            SignablePayloadField::PreviewLayout {
                 common,
-                list_layout,
+                preview_layout,
             } => {
                 assert_eq!(common.label, "Address Lookup Tables");
                 assert!(
@@ -543,15 +532,20 @@ mod tests {
                     "Should have fallback text with lookup table addresses"
                 );
 
-                // Should have fields for: Total Tables, Table 1 Address, Table 1 Writable, Table 1 Readonly, Table 2 Address, Table 2 Readonly
+                // Check that both condensed and expanded views exist
+                assert!(preview_layout.condensed.is_some());
+                assert!(preview_layout.expanded.is_some());
+
+                // Check expanded view has detailed fields
+                let expanded_fields = &preview_layout.expanded.as_ref().unwrap().fields;
                 assert!(
-                    list_layout.fields.len() >= 5,
+                    expanded_fields.len() >= 5,
                     "Should have multiple detail fields, got {}",
-                    list_layout.fields.len()
+                    expanded_fields.len()
                 );
 
                 // Check first field is total count
-                if let Some(first_field) = list_layout.fields.first() {
+                if let Some(first_field) = expanded_fields.first() {
                     if let SignablePayloadField::TextV2 { common, .. } =
                         &first_field.signable_payload_field
                     {
@@ -561,11 +555,11 @@ mod tests {
                 }
 
                 println!(
-                    "✅ Address lookup table field created with {} detail fields",
-                    list_layout.fields.len()
+                    "✅ Address lookup table field created with {} detail fields in expanded view",
+                    expanded_fields.len()
                 );
             }
-            _ => panic!("Expected ListLayout field type"),
+            _ => panic!("Expected PreviewLayout field type"),
         }
     }
 

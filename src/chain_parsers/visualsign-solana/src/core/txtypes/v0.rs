@@ -6,7 +6,8 @@ use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_sdk::transaction::VersionedTransaction;
 use visualsign::{
     AnnotatedPayloadField, SignablePayloadField, SignablePayloadFieldCommon,
-    SignablePayloadFieldListLayout, SignablePayloadFieldTextV2, vsptrait::VisualSignError,
+    SignablePayloadFieldListLayout, SignablePayloadFieldPreviewLayout, SignablePayloadFieldTextV2,
+    vsptrait::VisualSignError,
 };
 
 /// Decode V0 transaction transfers using solana-parser
@@ -53,7 +54,7 @@ pub fn decode_v0_transfers(
                                 transfer.to,
                                 transfer.amount
                             ),
-                            label: format!("V0 Transfer {}", i + 1),
+                            label: format!("Transfer {}", i + 1),
                         },
                         text_v2: SignablePayloadFieldTextV2 {
                             text: format!(
@@ -189,27 +190,27 @@ pub fn decode_v0_instructions(
 }
 
 /// Create a rich address lookup table field with detailed information
+/// Reuses the advanced preview layout pattern to avoid top-level ListLayout restriction
 pub fn create_address_lookup_table_field(
     v0_message: &solana_sdk::message::v0::Message,
 ) -> Result<SignablePayloadField, VisualSignError> {
-    let lookup_tables: Vec<String> = v0_message
+    // Create fallback text with lookup table addresses
+    let fallback_text = v0_message
         .address_table_lookups
         .iter()
         .map(|lookup| lookup.account_key.to_string())
-        .collect();
+        .collect::<Vec<_>>()
+        .join(", ");
 
-    let table_count = lookup_tables.len();
-    let fallback_text = lookup_tables.join(", ");
-
-    // Create expanded fields as individual AnnotatedPayloadField entries
+    // Create the expanded fields manually for more detailed view
     let mut expanded_fields = vec![AnnotatedPayloadField {
         signable_payload_field: SignablePayloadField::TextV2 {
             common: SignablePayloadFieldCommon {
-                fallback_text: table_count.to_string(),
+                fallback_text: v0_message.address_table_lookups.len().to_string(),
                 label: "Total Tables".to_string(),
             },
             text_v2: SignablePayloadFieldTextV2 {
-                text: table_count.to_string(),
+                text: v0_message.address_table_lookups.len().to_string(),
             },
         },
         static_annotation: None,
@@ -218,7 +219,7 @@ pub fn create_address_lookup_table_field(
 
     // Add individual lookup table entries with details
     for (i, lookup) in v0_message.address_table_lookups.iter().enumerate() {
-        let table_label = if table_count == 1 {
+        let table_label = if v0_message.address_table_lookups.len() == 1 {
             "Table Address".to_string()
         } else {
             format!("Table {} Address", i + 1)
@@ -244,7 +245,7 @@ pub fn create_address_lookup_table_field(
                 signable_payload_field: SignablePayloadField::TextV2 {
                     common: SignablePayloadFieldCommon {
                         fallback_text: format!("{} accounts", lookup.writable_indexes.len()),
-                        label: if table_count == 1 {
+                        label: if v0_message.address_table_lookups.len() == 1 {
                             "Writable Accounts".to_string()
                         } else {
                             format!("Table {} Writable", i + 1)
@@ -268,7 +269,7 @@ pub fn create_address_lookup_table_field(
                 signable_payload_field: SignablePayloadField::TextV2 {
                     common: SignablePayloadFieldCommon {
                         fallback_text: format!("{} accounts", lookup.readonly_indexes.len()),
-                        label: if table_count == 1 {
+                        label: if v0_message.address_table_lookups.len() == 1 {
                             "Readonly Accounts".to_string()
                         } else {
                             format!("Table {} Readonly", i + 1)
@@ -288,14 +289,69 @@ pub fn create_address_lookup_table_field(
         }
     }
 
-    // Use a simple ListLayout instead of nested PreviewLayout
-    Ok(SignablePayloadField::ListLayout {
+    // Create summary for condensed view
+    let mut condensed_fields = vec![AnnotatedPayloadField {
+        signable_payload_field: SignablePayloadField::TextV2 {
+            common: SignablePayloadFieldCommon {
+                fallback_text: format!("{} Tables", v0_message.address_table_lookups.len()),
+                label: "Total Tables".to_string(),
+            },
+            text_v2: SignablePayloadFieldTextV2 {
+                text: format!("{} Tables", v0_message.address_table_lookups.len()),
+            },
+        },
+        static_annotation: None,
+        dynamic_annotation: None,
+    }];
+
+    // Add table addresses to condensed view (just the addresses)
+    for lookup in &v0_message.address_table_lookups {
+        condensed_fields.push(AnnotatedPayloadField {
+            signable_payload_field: SignablePayloadField::TextV2 {
+                common: SignablePayloadFieldCommon {
+                    fallback_text: lookup.account_key.to_string(),
+                    label: "Table".to_string(),
+                },
+                text_v2: SignablePayloadFieldTextV2 {
+                    text: lookup.account_key.to_string(),
+                },
+            },
+            static_annotation: None,
+            dynamic_annotation: None,
+        });
+    }
+
+    let condensed_list = SignablePayloadFieldListLayout {
+        fields: condensed_fields,
+    };
+
+    let expanded_list = SignablePayloadFieldListLayout {
+        fields: expanded_fields,
+    };
+
+    // Use PreviewLayout pattern like the accounts function
+    Ok(SignablePayloadField::PreviewLayout {
         common: SignablePayloadFieldCommon {
             fallback_text,
             label: "Address Lookup Tables".to_string(),
         },
-        list_layout: SignablePayloadFieldListLayout {
-            fields: expanded_fields,
+        preview_layout: SignablePayloadFieldPreviewLayout {
+            title: Some(SignablePayloadFieldTextV2 {
+                text: "Address Lookup Tables".to_string(),
+            }),
+            subtitle: Some(SignablePayloadFieldTextV2 {
+                text: format!(
+                    "{} table{}",
+                    v0_message.address_table_lookups.len(),
+                    if v0_message.address_table_lookups.len() == 1 {
+                        ""
+                    } else {
+                        "s"
+                    }
+                ),
+            }),
+            condensed: Some(condensed_list),
+            expanded: Some(expanded_list),
         },
     })
 }

@@ -321,125 +321,161 @@
       "Type": "preview_layout"
     },
     {
-      "FallbackText": "14 accounts",
+      "FallbackText": "B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY[SW], 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara[SW], 79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK[W], ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49[W], BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL[W], feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i[W], J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn[W], Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb[W], 11111111111111111111111111111111[R], 6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS[R], ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL[R], ComputeBudget111111111111111111111111111111[R], SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy[R], TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA[R]",
       "Label": "Accounts",
-      "ListLayout": {
-        "Fields": [
-          {
-            "FallbackText": "Address: B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY, Signer, Writable",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY, Signer, Writable"
+      "PreviewLayout": {
+        "Condensed": {
+          "Fields": [
+            {
+              "FallbackText": "2 Signers",
+              "Label": "Signers",
+              "TextV2": {
+                "Text": "2 Signers"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara, Signer, Writable",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: 7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara, Signer, Writable"
+            {
+              "FallbackText": "6 Writable",
+              "Label": "Writable",
+              "TextV2": {
+                "Text": "6 Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: 79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK, Writable",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: 79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK, Writable"
+            {
+              "FallbackText": "6 Read Only",
+              "Label": "Read Only",
+              "TextV2": {
+                "Text": "6 Read Only"
+              },
+              "Type": "text_v2"
+            }
+          ]
+        },
+        "Expanded": {
+          "Fields": [
+            {
+              "FallbackText": "B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY, Signer, Writable",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "B46xaUeRM112q7EVbsBJPfWMLs2X64vtZpJVE1ofKZMY, Signer, Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49, Writable",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49, Writable"
+            {
+              "FallbackText": "7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara, Signer, Writable",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "7aHWbSHLuxkq9iN62P6zxU5VQWSH87x2hmhqQKm2Qara, Signer, Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL, Writable",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL, Writable"
+            {
+              "FallbackText": "79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK, Writable",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "79gRaJsiJrinQkTdKG3LooENqdg6JjUNdi3sqBe9fmAK, Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i, Writable",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i, Writable"
+            {
+              "FallbackText": "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49, Writable",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49, Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn, Writable",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn, Writable"
+            {
+              "FallbackText": "BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL, Writable",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "BgKUXdS29YcHCFrPm5M8oLHiTzZaMDjsebggjoaQ6KFL, Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb, Writable",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb, Writable"
+            {
+              "FallbackText": "feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i, Writable",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "feeeFLLsam6xZJFc6UQFrHqkvVt4jfmVvi2BRLkUZ4i, Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: 11111111111111111111111111111111",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: 11111111111111111111111111111111"
+            {
+              "FallbackText": "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn, Writable",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn, Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: 6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: 6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS"
+            {
+              "FallbackText": "Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb, Writable",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4P815Awbb, Writable"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+            {
+              "FallbackText": "11111111111111111111111111111111",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "11111111111111111111111111111111"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: ComputeBudget111111111111111111111111111111",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: ComputeBudget111111111111111111111111111111"
+            {
+              "FallbackText": "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "6iQKfEyhr3bZMotVkW6beNZz5CPAkiwvgV2CTje9pVSS"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy"
+            {
+              "FallbackText": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          },
-          {
-            "FallbackText": "Address: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-            "Label": "Account",
-            "TextV2": {
-              "Text": "Address: TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+            {
+              "FallbackText": "ComputeBudget111111111111111111111111111111",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "ComputeBudget111111111111111111111111111111"
+              },
+              "Type": "text_v2"
             },
-            "Type": "text_v2"
-          }
-        ]
+            {
+              "FallbackText": "SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy"
+              },
+              "Type": "text_v2"
+            },
+            {
+              "FallbackText": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+              "Label": "Account",
+              "TextV2": {
+                "Text": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+              },
+              "Type": "text_v2"
+            }
+          ]
+        },
+        "Subtitle": {
+          "Text": "14 accounts"
+        },
+        "Title": {
+          "Text": "Accounts"
+        }
       },
-      "Type": "list_layout"
+      "Type": "preview_layout"
     }
   ],
   "PayloadType": "SolanaTx",
