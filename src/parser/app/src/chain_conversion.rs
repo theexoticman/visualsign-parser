@@ -8,6 +8,7 @@ pub(crate) fn proto_to_registry(proto: ProtoChain) -> RegistryChain {
         ProtoChain::Solana => RegistryChain::Solana,
         ProtoChain::Ethereum => RegistryChain::Ethereum,
         ProtoChain::Sui => RegistryChain::Sui,
+        ProtoChain::Tron => RegistryChain::Tron,
         ProtoChain::Unspecified => RegistryChain::Unspecified,
         _ => RegistryChain::Custom("custom_unknown".into()),
     }

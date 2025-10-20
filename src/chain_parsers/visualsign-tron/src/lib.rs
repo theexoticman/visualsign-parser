@@ -29,17 +29,11 @@ fn decode_transaction(
                 .strip_prefix("0x")
                 .unwrap_or(raw_transaction);
             hex::decode(clean_hex).map_err(|e| {
-                TronParserError::FailedToDecodeTransaction(format!(
-                    "Failed to decode hex: {}",
-                    e
-                ))
+                TronParserError::FailedToDecodeTransaction(format!("Failed to decode hex: {}", e))
             })?
         }
         SupportedEncodings::Base64 => b64.decode(raw_transaction).map_err(|e| {
-            TronParserError::FailedToDecodeTransaction(format!(
-                "Failed to decode base64: {}",
-                e
-            ))
+            TronParserError::FailedToDecodeTransaction(format!("Failed to decode base64: {}", e))
         })?,
     };
 
@@ -219,9 +213,7 @@ fn convert_to_visual_sign_payload(
                                 fallback_text: from_address.clone(),
                                 label: "From".to_string(),
                             },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: from_address,
-                            },
+                            text_v2: SignablePayloadFieldTextV2 { text: from_address },
                         });
 
                         // Add to address field
@@ -231,16 +223,17 @@ fn convert_to_visual_sign_payload(
                                 fallback_text: to_address.clone(),
                                 label: "To".to_string(),
                             },
-                            text_v2: SignablePayloadFieldTextV2 {
-                                text: to_address,
-                            },
+                            text_v2: SignablePayloadFieldTextV2 { text: to_address },
                         });
 
                         // Add amount field
                         let amount_trx = transfer.amount as f64 / 1_000_000.0;
                         fields.push(SignablePayloadField::TextV2 {
                             common: SignablePayloadFieldCommon {
-                                fallback_text: format!("{} SUN ({} TRX)", transfer.amount, amount_trx),
+                                fallback_text: format!(
+                                    "{} SUN ({} TRX)",
+                                    transfer.amount, amount_trx
+                                ),
                                 label: "Amount".to_string(),
                             },
                             text_v2: SignablePayloadFieldTextV2 {
@@ -278,10 +271,7 @@ fn convert_to_visual_sign_payload(
     ))
 }
 
-impl VisualSignConverterFromString<TronTransactionWrapper>
-    for TronVisualSignConverter
-{
-}
+impl VisualSignConverterFromString<TronTransactionWrapper> for TronVisualSignConverter {}
 
 // Public API functions
 pub fn transaction_to_visual_sign(

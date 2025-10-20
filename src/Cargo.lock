@@ -5598,6 +5598,7 @@ dependencies = [
  "visualsign-ethereum",
  "visualsign-solana",
  "visualsign-sui",
+ "visualsign-tron",
  "visualsign-unspecified",
 ]
 
