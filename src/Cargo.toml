@@ -13,6 +13,7 @@ members = [
   "chain_parsers/visualsign-ethereum",
   "chain_parsers/visualsign-solana",
   "chain_parsers/visualsign-sui",
+  "chain_parsers/visualsign-tron",
   "chain_parsers/visualsign-unspecified",
 ]
 
