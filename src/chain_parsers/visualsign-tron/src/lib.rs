@@ -1,5 +1,6 @@
 use visualsign::{
     SignablePayload, SignablePayloadField, SignablePayloadFieldCommon, SignablePayloadFieldTextV2,
+    encodings::SupportedEncodings,
     vsptrait::{
         Transaction, TransactionParseError, VisualSignConverter, VisualSignConverterFromString,
         VisualSignError, VisualSignOptions,
@@ -8,25 +9,66 @@ use visualsign::{
 
 use anychain_tron::protocol::Tron::transaction;
 use anychain_tron::protocol::balance_contract::TransferContract;
+use base64::{Engine as _, engine::general_purpose::STANDARD as b64};
 use protobuf::Message;
+use sha2::{Digest, Sha256};
+
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum TronParserError {
+    #[error("Failed to decode transaction: {0}")]
+    FailedToDecodeTransaction(String),
+}
+
+fn decode_transaction(
+    raw_transaction: &str,
+    encodings: SupportedEncodings,
+) -> Result<transaction::Raw, TronParserError> {
+    let bytes = match encodings {
+        SupportedEncodings::Hex => {
+            let clean_hex = raw_transaction
+                .strip_prefix("0x")
+                .unwrap_or(raw_transaction);
+            hex::decode(clean_hex).map_err(|e| {
+                TronParserError::FailedToDecodeTransaction(format!(
+                    "Failed to decode hex: {}",
+                    e
+                ))
+            })?
+        }
+        SupportedEncodings::Base64 => b64.decode(raw_transaction).map_err(|e| {
+            TronParserError::FailedToDecodeTransaction(format!(
+                "Failed to decode base64: {}",
+                e
+            ))
+        })?,
+    };
+
+    // Parse and return the Tron transaction
+    transaction::Raw::parse_from_bytes(&bytes).map_err(|e| {
+        TronParserError::FailedToDecodeTransaction(format!(
+            "Failed to parse Tron transaction: {}",
+            e
+        ))
+    })
+}
 
 // This is a standalone crate for handling unspecified or unknown transactions, mostly provided for testing and as a sample implementation template to start from
 /// Wrapper for unspecified/unknown transactions
 #[derive(Debug, Clone)]
 pub struct TronTransactionWrapper {
-    raw_data: String,
+    transaction: transaction::Raw,
 }
 
 impl Transaction for TronTransactionWrapper {
     fn from_string(data: &str) -> Result<Self, TransactionParseError> {
-        // Basic validation - try to decode hex
-        let clean_hex = data.strip_prefix("0x").unwrap_or(data);
-        hex::decode(clean_hex)
+        let format = if data.starts_with("0x") {
+            SupportedEncodings::Hex
+        } else {
+            visualsign::encodings::SupportedEncodings::detect(data)
+        };
+        let transaction = decode_transaction(data, format)
             .map_err(|e| TransactionParseError::DecodeError(e.to_string()))?;
-
-        Ok(Self {
-            raw_data: data.to_string(),
-        })
+        Ok(Self { transaction })
     }
 
     fn transaction_type(&self) -> String {
@@ -35,12 +77,12 @@ impl Transaction for TronTransactionWrapper {
 }
 
 impl TronTransactionWrapper {
-    pub fn new(raw_data: String) -> Self {
-        Self { raw_data }
+    pub fn new(transaction: transaction::Raw) -> Self {
+        Self { transaction }
     }
 
-    pub fn raw_data(&self) -> &str {
-        &self.raw_data
+    pub fn inner(&self) -> &transaction::Raw {
+        &self.transaction
     }
 }
 
@@ -53,31 +95,14 @@ impl VisualSignConverter<TronTransactionWrapper> for TronVisualSignConverter {
         transaction_wrapper: TronTransactionWrapper,
         options: VisualSignOptions,
     ) -> Result<SignablePayload, VisualSignError> {
-        convert_to_visual_sign_payload(&transaction_wrapper.raw_data, options)
+        convert_to_visual_sign_payload(transaction_wrapper.inner().clone(), options)
     }
 }
 
 fn convert_to_visual_sign_payload(
-    raw_transaction: &str,
+    raw_data: transaction::Raw,
     options: VisualSignOptions,
 ) -> Result<SignablePayload, VisualSignError> {
-    // Decode hex to bytes
-    let clean_hex = raw_transaction.strip_prefix("0x").unwrap_or(raw_transaction);
-    let raw_data_bytes = hex::decode(clean_hex).map_err(|e| {
-        VisualSignError::ParseError(TransactionParseError::DecodeError(format!(
-            "Failed to decode hex: {}",
-            e
-        )))
-    })?;
-
-    // Parse the Transaction.raw message using protobuf
-    let raw_data = transaction::Raw::parse_from_bytes(&raw_data_bytes).map_err(|e| {
-        VisualSignError::ParseError(TransactionParseError::DecodeError(format!(
-            "Failed to parse raw transaction data: {}",
-            e
-        )))
-    })?;
-
     let chain_name = "Tron".to_string();
 
     let mut fields = vec![SignablePayloadField::TextV2 {
@@ -88,6 +113,87 @@ fn convert_to_visual_sign_payload(
         text_v2: SignablePayloadFieldTextV2 { text: chain_name },
     }];
 
+    // Calculate transaction ID by computing SHA256 of raw_data bytes
+    let raw_data_bytes = raw_data.write_to_bytes().map_err(|e| {
+        VisualSignError::ParseError(TransactionParseError::DecodeError(format!(
+            "Failed to serialize transaction: {}",
+            e
+        )))
+    })?;
+
+    let mut hasher = Sha256::new();
+    hasher.update(&raw_data_bytes);
+    let calculated_tx_id = hex::encode(hasher.finalize());
+
+    // Add Transaction ID field
+    fields.push(SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: calculated_tx_id.clone(),
+            label: "Transaction ID".to_string(),
+        },
+        text_v2: SignablePayloadFieldTextV2 {
+            text: calculated_tx_id,
+        },
+    });
+
+    // Add timestamp field
+    let timestamp_formatted = format_timestamp(raw_data.timestamp);
+    fields.push(SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: format!("{} ({} ms)", timestamp_formatted, raw_data.timestamp),
+            label: "Timestamp".to_string(),
+        },
+        text_v2: SignablePayloadFieldTextV2 {
+            text: format!("{} ({} ms)", timestamp_formatted, raw_data.timestamp),
+        },
+    });
+
+    // Add expiration field
+    let expiration_formatted = format_timestamp(raw_data.expiration);
+    fields.push(SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: format!("{} ({} ms)", expiration_formatted, raw_data.expiration),
+            label: "Expiration".to_string(),
+        },
+        text_v2: SignablePayloadFieldTextV2 {
+            text: format!("{} ({} ms)", expiration_formatted, raw_data.expiration),
+        },
+    });
+
+    // Add fee limit field
+    let fee_limit_trx = raw_data.fee_limit as f64 / 1_000_000.0;
+    fields.push(SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: format!("{} SUN ({} TRX)", raw_data.fee_limit, fee_limit_trx),
+            label: "Fee Limit".to_string(),
+        },
+        text_v2: SignablePayloadFieldTextV2 {
+            text: format!("{} SUN ({} TRX)", raw_data.fee_limit, fee_limit_trx),
+        },
+    });
+
+    // Add ref block bytes field
+    fields.push(SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: hex::encode(&raw_data.ref_block_bytes),
+            label: "Ref Block".to_string(),
+        },
+        text_v2: SignablePayloadFieldTextV2 {
+            text: hex::encode(&raw_data.ref_block_bytes),
+        },
+    });
+
+    // Add ref block hash field
+    fields.push(SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: hex::encode(&raw_data.ref_block_hash),
+            label: "Ref Block Hash".to_string(),
+        },
+        text_v2: SignablePayloadFieldTextV2 {
+            text: hex::encode(&raw_data.ref_block_hash),
+        },
+    });
+
     // Parse contracts
     for contract in raw_data.contract.iter() {
         if let Some(parameter) = contract.parameter.as_ref() {
@@ -95,33 +201,50 @@ fn convert_to_visual_sign_payload(
             match parameter.type_url.as_str() {
                 "type.googleapis.com/protocol.TransferContract" => {
                     if let Ok(transfer) = TransferContract::parse_from_bytes(&parameter.value) {
-                        let from_address = address_to_base58(&transfer.owner_address);
-                        let to_address = address_to_base58(&transfer.to_address);
-                        let amount_trx = transfer.amount as f64 / 1_000_000.0;
+                        // Add contract type field
+                        fields.push(SignablePayloadField::TextV2 {
+                            common: SignablePayloadFieldCommon {
+                                fallback_text: "TransferContract (TRX Transfer)".to_string(),
+                                label: "Contract Type".to_string(),
+                            },
+                            text_v2: SignablePayloadFieldTextV2 {
+                                text: "TransferContract (TRX Transfer)".to_string(),
+                            },
+                        });
 
+                        // Add from address field
+                        let from_address = address_to_base58(&transfer.owner_address);
                         fields.push(SignablePayloadField::TextV2 {
                             common: SignablePayloadFieldCommon {
                                 fallback_text: from_address.clone(),
                                 label: "From".to_string(),
                             },
-                            text_v2: SignablePayloadFieldTextV2 { text: from_address },
+                            text_v2: SignablePayloadFieldTextV2 {
+                                text: from_address,
+                            },
                         });
 
+                        // Add to address field
+                        let to_address = address_to_base58(&transfer.to_address);
                         fields.push(SignablePayloadField::TextV2 {
                             common: SignablePayloadFieldCommon {
                                 fallback_text: to_address.clone(),
                                 label: "To".to_string(),
                             },
-                            text_v2: SignablePayloadFieldTextV2 { text: to_address },
+                            text_v2: SignablePayloadFieldTextV2 {
+                                text: to_address,
+                            },
                         });
 
+                        // Add amount field
+                        let amount_trx = transfer.amount as f64 / 1_000_000.0;
                         fields.push(SignablePayloadField::TextV2 {
                             common: SignablePayloadFieldCommon {
-                                fallback_text: format!("{} TRX", amount_trx),
+                                fallback_text: format!("{} SUN ({} TRX)", transfer.amount, amount_trx),
                                 label: "Amount".to_string(),
                             },
                             text_v2: SignablePayloadFieldTextV2 {
-                                text: format!("{} TRX", amount_trx),
+                                text: format!("{} SUN ({} TRX)", transfer.amount, amount_trx),
                             },
                         });
                     }
@@ -134,7 +257,7 @@ fn convert_to_visual_sign_payload(
                             label: "Contract Type".to_string(),
                         },
                         text_v2: SignablePayloadFieldTextV2 {
-                            text: parameter.type_url.clone(),
+                            text: format!("{} (not fully decoded)", parameter.type_url),
                         },
                     });
                 }
@@ -162,10 +285,10 @@ impl VisualSignConverterFromString<TronTransactionWrapper>
 
 // Public API functions
 pub fn transaction_to_visual_sign(
-    raw_data: String,
+    transaction: transaction::Raw,
     options: VisualSignOptions,
 ) -> Result<SignablePayload, VisualSignError> {
-    let wrapper = TronTransactionWrapper::new(raw_data);
+    let wrapper = TronTransactionWrapper::new(transaction);
     let converter = TronVisualSignConverter;
     converter.to_visual_sign_payload(wrapper, options)
 }
@@ -180,8 +303,6 @@ pub fn transaction_string_to_visual_sign(
 
 // Helper function to convert Tron address bytes to base58 format
 fn address_to_base58(address_bytes: &[u8]) -> String {
-    use sha2::{Digest, Sha256};
-
     // Add checksum
     let mut hasher = Sha256::new();
     hasher.update(address_bytes);
@@ -195,4 +316,12 @@ fn address_to_base58(address_bytes: &[u8]) -> String {
     with_checksum.extend_from_slice(&hash2[..4]);
 
     base58::ToBase58::to_base58(&with_checksum[..])
+}
+
+// Helper function to format Unix timestamp (milliseconds) to human-readable format
+fn format_timestamp(timestamp_ms: i64) -> String {
+    use chrono::{TimeZone, Utc};
+
+    let datetime = Utc.timestamp_millis_opt(timestamp_ms).unwrap();
+    datetime.format("%Y-%m-%d %H:%M:%S UTC").to_string()
 }
