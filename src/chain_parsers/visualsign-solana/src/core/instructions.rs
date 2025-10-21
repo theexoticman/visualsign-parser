@@ -46,7 +46,7 @@ pub fn decode_instructions(
     let results: Result<Vec<AnnotatedPayloadField>, VisualSignError> = instructions
         .iter()
         .enumerate()
-        .map(|(instruction_index, _)| {
+        .map(|(instruction_index, instruction)| {
             // Create sender account from first account key (typically the fee payer)
             let sender = SolanaAccount {
                 account_key: account_keys[0].to_string(),
@@ -58,7 +58,12 @@ pub fn decode_instructions(
 
             // Try to visualize with available visualizers (including unknown_program fallback)
             visualize_with_any(&visualizers_refs, &context)
-                .expect("Should always have a visualizer available (unknown_program is catch-all)")
+                .unwrap_or_else(|| {
+                    panic!(
+                        "No visualizer available for instruction {} at index {}",
+                        instruction.program_id, instruction_index
+                    )
+                })
                 .map(|viz_result| viz_result.field)
         })
         .collect();
@@ -66,13 +71,13 @@ pub fn decode_instructions(
     let fields = results?;
 
     // Self-check: ensure we have the same number of instruction fields as input instructions
-    assert_eq!(
-        fields.len(),
-        instructions.len(),
-        "Instruction count mismatch: expected {} instructions, got {} fields. This should never happen with unknown_program fallback.",
-        instructions.len(),
-        fields.len()
-    );
+    if fields.len() != instructions.len() {
+        return Err(VisualSignError::InvariantViolation(format!(
+            "Instruction count mismatch: expected {} instructions, got {} fields. This should never happen with unknown_program fallback.",
+            instructions.len(),
+            fields.len()
+        )));
+    }
 
     Ok(fields)
 }
