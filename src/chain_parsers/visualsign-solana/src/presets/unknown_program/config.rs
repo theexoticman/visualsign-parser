@@ -22,7 +22,11 @@ impl SolanaIntegrationConfig for UnknownProgramConfig {
     }
 
     // Override can_handle to always return true - this is a catch-all fallback
-    fn can_handle(&self, _program_id: &str, _instruction: &solana_sdk::instruction::Instruction) -> bool {
+    fn can_handle(
+        &self,
+        _program_id: &str,
+        _instruction: &solana_sdk::instruction::Instruction,
+    ) -> bool {
         true
     }
 }

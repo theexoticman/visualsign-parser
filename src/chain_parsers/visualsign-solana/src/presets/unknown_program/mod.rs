@@ -48,9 +48,7 @@ fn create_unknown_program_preview_layout(
     let instruction_data_hex = hex::encode(&instruction.data);
 
     // Condensed view - just the essentials
-    let condensed_fields = vec![
-        create_text_field("Program", &program_id)?,
-    ];
+    let condensed_fields = vec![create_text_field("Program", &program_id)?];
 
     // Expanded view - adds instruction data
     let expanded_fields = vec![

@@ -86,7 +86,10 @@ mod tests {
         assert_eq!(to_pascal_case("system"), "System");
         assert_eq!(to_pascal_case("unknown_program"), "UnknownProgram");
         assert_eq!(to_pascal_case("jupiter_swap"), "JupiterSwap");
-        assert_eq!(to_pascal_case("associated_token_account"), "AssociatedTokenAccount");
+        assert_eq!(
+            to_pascal_case("associated_token_account"),
+            "AssociatedTokenAccount"
+        );
     }
 
     #[test]
@@ -106,6 +109,9 @@ mod tests {
     #[test]
     fn test_collect_visualizers_not_empty() {
         let visualizers = collect_visualizers();
-        assert!(!visualizers.is_empty(), "Should have at least one visualizer");
+        assert!(
+            !visualizers.is_empty(),
+            "Should have at least one visualizer"
+        );
     }
 }
