@@ -1,5 +1,6 @@
 use parser_app::cli::Cli;
 
-fn main() {
-    Cli::execute()
+#[tokio::main]
+async fn main() {
+    Cli::execute().await
 }

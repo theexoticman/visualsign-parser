@@ -1,4 +1,6 @@
 //! Parser
+use std::sync::Arc;
+
 use generated::{
     google::rpc::{Code, Status},
     health::AppHealthResponse,
@@ -6,6 +8,7 @@ use generated::{
     prost::Message,
 };
 use qos_core::{handles::EphemeralKeyHandle, server::RequestProcessor};
+use tokio::sync::RwLock;
 
 /// Struct holding a request processor for QOS
 pub struct Processor {
@@ -14,83 +17,85 @@ pub struct Processor {
 
 impl Processor {
     /// Creates a new request processor. The only argument needed is an ephemeral key handle.
-    #[must_use]
-    pub fn new(handle: EphemeralKeyHandle) -> Self {
-        Self { handle }
+    pub fn new(handle: EphemeralKeyHandle) -> Arc<RwLock<Self>> {
+        Arc::new(RwLock::new(Self { handle }))
     }
 }
 
 impl RequestProcessor for Processor {
-    fn process(&mut self, request: Vec<u8>) -> Vec<u8> {
-        let request = match QosParserRequest::decode(&*request)
-            // TODO: clean up this error handling, we can implement From/Into and probably clean this up meaningfully
-            .map_err(|e| {
-                qos_parser_response::Output::Status(Status {
-                    code: Code::Internal as i32,
-                    message: e.to_string(),
-                    details: vec![],
+    async fn process(&self, request: &[u8]) -> Vec<u8> {
+        // We're doing a potentially CPU intensive blocking task, we shouldn't just lock the runtime
+        tokio::task::block_in_place(move || {
+            let request = match QosParserRequest::decode(&*request)
+                // TODO: clean up this error handling, we can implement From/Into and probably clean this up meaningfully
+                .map_err(|e| {
+                    qos_parser_response::Output::Status(Status {
+                        code: Code::Internal as i32,
+                        message: e.to_string(),
+                        details: vec![],
+                    })
                 })
-            })
-            .map_err(|o| QosParserResponse { output: Some(o) })
-        {
-            Ok(request) => request,
-            Err(err_resp) => return err_resp.encode_to_vec(),
-        };
+                .map_err(|o| QosParserResponse { output: Some(o) })
+            {
+                Ok(request) => request,
+                Err(err_resp) => return err_resp.encode_to_vec(),
+            };
 
-        let ephemeral_key = match self
-            .handle
-            .get_ephemeral_key()
-            .map_err(|e| {
-                qos_parser_response::Output::Status(Status {
-                    code: Code::Internal as i32,
-                    message: format!("unable to get ephemeral key: {e:?}"),
-                    details: vec![],
+            let ephemeral_key = match self
+                .handle
+                .get_ephemeral_key()
+                .map_err(|e| {
+                    qos_parser_response::Output::Status(Status {
+                        code: Code::Internal as i32,
+                        message: format!("unable to get ephemeral key: {e:?}"),
+                        details: vec![],
+                    })
                 })
-            })
-            .map_err(|output| QosParserResponse {
-                output: Some(output),
-            }) {
-            Ok(input) => input,
-            Err(err_resp) => return err_resp.encode_to_vec(),
-        };
+                .map_err(|output| QosParserResponse {
+                    output: Some(output),
+                }) {
+                Ok(input) => input,
+                Err(err_resp) => return err_resp.encode_to_vec(),
+            };
 
-        let input = match request
-            .input
-            .ok_or({
-                qos_parser_response::Output::Status(Status {
-                    code: Code::Internal as i32,
-                    message: "missing request input".to_string(),
-                    details: vec![],
+            let input = match request
+                .input
+                .ok_or({
+                    qos_parser_response::Output::Status(Status {
+                        code: Code::Internal as i32,
+                        message: "missing request input".to_string(),
+                        details: vec![],
+                    })
                 })
-            })
-            .map_err(|o| QosParserResponse { output: Some(o) })
-        {
-            Ok(input) => input,
-            Err(err_resp) => return err_resp.encode_to_vec(),
-        };
+                .map_err(|o| QosParserResponse { output: Some(o) })
+            {
+                Ok(input) => input,
+                Err(err_resp) => return err_resp.encode_to_vec(),
+            };
 
-        let output = match input {
-            qos_parser_request::Input::ParseRequest(parse_request) => {
-                match crate::routes::parse::parse(parse_request, &ephemeral_key)
-                    .map(qos_parser_response::Output::ParseResponse)
-                    .map_err(|e| {
-                        qos_parser_response::Output::Status(Status {
-                            code: Code::Internal as i32,
-                            message: format!("{e:?}"),
-                            details: vec![],
-                        })
-                    }) {
-                    Ok(o) | Err(o) => o,
+            let output = match input {
+                qos_parser_request::Input::ParseRequest(parse_request) => {
+                    match crate::routes::parse::parse(parse_request, &ephemeral_key)
+                        .map(qos_parser_response::Output::ParseResponse)
+                        .map_err(|e| {
+                            qos_parser_response::Output::Status(Status {
+                                code: Code::Internal as i32,
+                                message: format!("{e:?}"),
+                                details: vec![],
+                            })
+                        }) {
+                        Ok(o) | Err(o) => o,
+                    }
                 }
-            }
-            qos_parser_request::Input::HealthRequest(_) => {
-                qos_parser_response::Output::HealthResponse(AppHealthResponse { code: 200 })
-            }
-        };
+                qos_parser_request::Input::HealthRequest(_) => {
+                    qos_parser_response::Output::HealthResponse(AppHealthResponse { code: 200 })
+                }
+            };
 
-        QosParserResponse {
-            output: Some(output),
-        }
-        .encode_to_vec()
+            QosParserResponse {
+                output: Some(output),
+            }
+            .encode_to_vec()
+        })
     }
 }

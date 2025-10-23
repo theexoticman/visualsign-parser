@@ -19,12 +19,8 @@ use generated::tonic::{Request, Response, Status};
 use health_check::AppHealthCheckable;
 use host_primitives::{GRPC_MAX_RECV_MSG_SIZE, enclave_client_timeout};
 use metrics::request;
-use qos_core::{client::Client as SocketClient, io::SocketAddress};
-use std::{
-    sync::mpsc::{SyncSender, sync_channel},
-    thread,
-    time::Instant,
-};
+use qos_core::{client::SocketClient, io::SocketAddress};
+use std::time::Instant;
 
 use tokio::sync::oneshot::{self, Sender};
 use tokio::{
@@ -32,18 +28,13 @@ use tokio::{
     spawn,
 };
 
-type SocketMessage = host_primitives::SocketMessage<QosParserRequest, QosParserResponse>;
 /// Host `gRPC` server.
 #[derive(Debug)]
 pub struct Host {
-    response_channel: SyncSender<SocketMessage>,
+    client: SocketClient,
 }
 
 impl Host {
-    fn new(response_channel: SyncSender<SocketMessage>) -> Self {
-        Self { response_channel }
-    }
-
     /// Start the host server.
     pub async fn listen(
         listen_addr: std::net::SocketAddr,
@@ -54,32 +45,16 @@ impl Host {
             .build()
             .expect("failed to start reflection service");
 
-        let (response_channel, receiver) =
-            sync_channel::<SocketMessage>(host_primitives::SOCKET_MESSAGE_QUEUE_BUFFER_SIZE);
-
+        let client = SocketClient::single(enclave_addr.clone(), enclave_client_timeout())
+            .expect("unable to create socket client");
         let app_checker = ParserHealth {
-            response_channel: response_channel.clone(),
+            client: client.clone(),
         };
         let health_check_service =
-            health_check::TkHealthCheck::build_service(enclave_addr.clone(), app_checker.clone());
+            health_check::TkHealthCheck::build_service(client.clone(), app_checker.clone());
         let k8_health_service = health_check::K8Health::build_service(app_checker);
 
-        let host = Host::new(response_channel);
-
-        thread::spawn(move || {
-            let client = SocketClient::new(enclave_addr, enclave_client_timeout());
-
-            loop {
-                let SocketMessage { replier, request } =
-                    receiver.recv().expect("failed to receive message");
-
-                let enclave_resp = host_primitives::send_proxy_request(request, &client);
-
-                replier
-                    .send(enclave_resp)
-                    .expect("message processor failed");
-            }
-        });
+        let host = Host { client };
 
         println!("HostServer listening on {listen_addr}");
 
@@ -129,7 +104,13 @@ impl parser_service_server::ParserService for Host {
 
         let now_step = Instant::now();
 
-        let output = host_primitives::send_socket_message(request, &self.response_channel)
+        let raw_output =
+            host_primitives::send_proxy_request::<QosParserRequest, QosParserResponse>(
+                request,
+                &self.client,
+            )
+            .await;
+        let output = raw_output
             .map_err(|e| Status::internal(format!("Parse: unexpected socket failure: {e:?}")))?
             .output
             .ok_or_else(|| Status::internal("QosParserResponse::output was None"))?;
@@ -175,11 +156,11 @@ impl parser_service_server::ParserService for Host {
 
 #[derive(Clone)]
 struct ParserHealth {
-    response_channel: SyncSender<SocketMessage>,
+    client: SocketClient,
 }
 
 impl AppHealthCheckable for ParserHealth {
-    fn app_health_check(&self) -> Result<tonic::Response<AppHealthResponse>, Status> {
+    async fn app_health_check(&self) -> Result<tonic::Response<AppHealthResponse>, Status> {
         let now = Instant::now();
 
         let request = QosParserRequest {
@@ -188,7 +169,14 @@ impl AppHealthCheckable for ParserHealth {
             )),
         };
 
-        let output = host_primitives::send_socket_message(request, &self.response_channel)
+        let raw_output =
+            host_primitives::send_proxy_request::<QosParserRequest, QosParserResponse>(
+                request,
+                &self.client,
+            )
+            .await;
+
+        let output = raw_output
             .map_err(|e| Status::internal(format!("App Health: unexpected socket failure: {e:?}")))?
             .output
             .ok_or_else(|| Status::internal("QosParserResponse::output was None"))?;

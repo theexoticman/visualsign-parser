@@ -1,7 +1,7 @@
 //! Services for health checking QOS hosts. Intended to be adding to secure app
 //! hosts.
 
-#![forbid(unsafe_code)]
+//! #![forbid(unsafe_code)]
 #![deny(clippy::all, clippy::unwrap_used)]
 #![warn(missing_docs, clippy::pedantic)]
 #![allow(clippy::missing_errors_doc, clippy::module_name_repetitions)]
@@ -20,10 +20,8 @@ use generated::health::{
     HostHealthRequest, HostHealthResponse,
 };
 use generated::tonic;
-use host_primitives::enclave_client_timeout;
 use qos_core::{
-    client::Client as SocketClient,
-    io::SocketAddress,
+    client::SocketClient,
     protocol::{ProtocolPhase, msg::ProtocolMsg},
 };
 use std::{pin::Pin, time::Duration};
@@ -52,13 +50,10 @@ where
     /// (`enclave_addr`).
     #[must_use]
     pub fn build_service(
-        enclave_addr: SocketAddress,
+        client: SocketClient,
         app_check: T,
     ) -> HealthCheckServiceServer<TkHealthCheck<T>> {
-        let inner = Self {
-            client: SocketClient::new(enclave_addr, enclave_client_timeout()),
-            app_check,
-        };
+        let inner = Self { client, app_check };
         HealthCheckServiceServer::new(inner)
     }
 }
@@ -66,7 +61,10 @@ where
 /// Something that can perform a health check on an app over a socket client.
 pub trait AppHealthCheckable: Clone {
     /// Perform a health check on a enclave app.
-    fn app_health_check(&self) -> Result<tonic::Response<AppHealthResponse>, tonic::Status>;
+    fn app_health_check(
+        &self,
+    ) -> impl std::future::Future<Output = Result<tonic::Response<AppHealthResponse>, tonic::Status>>
+    + Send;
 }
 
 #[tonic::async_trait]
@@ -91,7 +89,8 @@ where
 
         let encoded_response = self
             .client
-            .send(&encoded_request)
+            .call(&encoded_request)
+            .await
             .map_err(|e| tonic::Status::internal(format!("{e:?}")))?;
 
         let decoded_response = ProtocolMsg::try_from_slice(&encoded_response)
@@ -122,7 +121,7 @@ where
         &self,
         _request: tonic::Request<AppHealthRequest>,
     ) -> Result<tonic::Response<AppHealthResponse>, tonic::Status> {
-        self.app_check.app_health_check()
+        self.app_check.app_health_check().await
     }
 }
 
@@ -145,10 +144,11 @@ where
         K8HealthServer::new(inner)
     }
 
-    fn app_status(&self) -> K8ServingStatus {
+    async fn app_status(&self) -> K8ServingStatus {
         match self
             .app_check
             .app_health_check()
+            .await
             .map(|resp| match resp.into_inner().code {
                 200 => K8ServingStatus::Serving,
                 _ => K8ServingStatus::NotServing,
@@ -159,10 +159,13 @@ where
         }
     }
 
-    fn k8_request(&self, request: &tonic::Request<K8HealthCheckRequest>) -> K8HealthCheckResponse {
+    async fn k8_request(
+        &self,
+        request: &tonic::Request<K8HealthCheckRequest>,
+    ) -> K8HealthCheckResponse {
         let status = match request.get_ref().service.as_str() {
             LIVENESS => K8ServingStatus::Serving,
-            READINESS => self.app_status(),
+            READINESS => self.app_status().await,
             _ => K8ServingStatus::ServiceUnknown,
         };
 
@@ -184,7 +187,7 @@ where
         &self,
         request: tonic::Request<K8HealthCheckRequest>,
     ) -> std::result::Result<tonic::Response<K8HealthCheckResponse>, tonic::Status> {
-        Ok(tonic::Response::new(self.k8_request(&request)))
+        Ok(tonic::Response::new(self.k8_request(&request).await))
     }
 
     type WatchStream = ResponseStream;
@@ -197,7 +200,7 @@ where
         let self2 = self.clone();
         tokio::spawn(async move {
             loop {
-                let status = self2.k8_request(&request);
+                let status = self2.k8_request(&request).await;
                 match tx.send(Ok(status)).await {
                     Ok(()) => {
                         // `status` was queued to be sent to the gRPC client

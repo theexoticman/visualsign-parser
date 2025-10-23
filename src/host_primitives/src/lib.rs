@@ -2,61 +2,22 @@
 
 #![deny(clippy::all, clippy::unwrap_used)]
 
+use std::time::Duration;
+
 use borsh::BorshDeserialize;
 use prost::Message;
-use qos_core::{
-    io::{TimeVal, TimeValLike},
-    protocol::{ENCLAVE_APP_SOCKET_CLIENT_TIMEOUT_SECS, msg::ProtocolMsg},
-};
-use std::sync::mpsc::{SyncSender, sync_channel};
+use qos_core::protocol::{ProtocolError, msg::ProtocolMsg};
 use tonic::Status;
 
-pub static SOCKET_MESSAGE_QUEUE_BUFFER_SIZE: usize = 64;
-
+/// Buffer size for socket message queue.
+pub static ENCLAVE_QUEUE_CAPACITY: usize = 12;
 /// Maximum gRPC message size. Set to 25MB (25*1024*1024)
 pub static GRPC_MAX_RECV_MSG_SIZE: usize = 26_214_400;
 
-#[derive(Clone)]
-pub struct SocketMessage<Req, Resp>
-where
-    Resp: Message + Default,
-    Req: Message,
-{
-    pub replier: SyncSender<Result<Resp, Status>>,
-    pub request: Req,
-}
-
-/// Send a message to secure app via socket connection.
-pub fn send_socket_message<Req, Resp>(
+/// Send a message to a secure app via QOS proxy using the `Client`, without a tracing index
+pub async fn send_proxy_request<Req, Resp>(
     request: Req,
-    response_channel: &SyncSender<SocketMessage<Req, Resp>>,
-) -> Result<Resp, tonic::Status>
-where
-    Resp: Message + Default,
-    Req: Message,
-{
-    let (replier, receiver) =
-        sync_channel::<Result<Resp, tonic::Status>>(SOCKET_MESSAGE_QUEUE_BUFFER_SIZE);
-
-    response_channel
-        .send(SocketMessage { request, replier })
-        .map_err(|e| {
-            Status::internal(format!(
-                "send_socket_message: unexpected socket failure with error: {e:?}"
-            ))
-        })?;
-
-    receiver.recv().map_err(|e| {
-        Status::internal(format!(
-            "send_socket_message: failed to get receiver with error: {e:?}"
-        ))
-    })?
-}
-
-/// Send a message to a secure app via QOS proxy.
-pub fn send_proxy_request<Req, Resp>(
-    request: Req,
-    client: &qos_core::client::Client,
+    client: &qos_core::client::SocketClient,
 ) -> Result<Resp, tonic::Status>
 where
     Resp: Message + Default,
@@ -67,31 +28,35 @@ where
         let qos_request = ProtocolMsg::ProxyRequest { data };
 
         borsh::to_vec(&qos_request)
-            .map_err(|e| Status::internal(format!("Failed to serialize qos request: {:?}", e)))?
+            .map_err(|e| Status::internal(format!("Failed to serialize qos request: {e:?}")))?
     };
 
     let encoded_qos_response = client
-        .send(&encoded_qos_request)
-        .map_err(|e| Status::internal(format!("Failed to query enclave: {:?}", e)))?;
-    let qos_response = ProtocolMsg::try_from_slice(&encoded_qos_response).map_err(|e| {
-        Status::internal(format!("Failed to deserialized enclave response: {:?}", e))
-    })?;
+        .call(&encoded_qos_request)
+        .await
+        .map_err(|e| Status::internal(format!("Failed to query enclave: {e:?}")))?;
+    let qos_response = ProtocolMsg::try_from_slice(&encoded_qos_response)
+        .map_err(|e| Status::internal(format!("Failed to deserialized enclave response: {e:?}")))?;
 
     let encoded_app_response = match qos_response {
         ProtocolMsg::ProxyResponse { data } => data,
+        ProtocolMsg::ProtocolErrorResponse(ProtocolError::AppClientRecvTimeout) => {
+            let msg = "AppClientRecvTimeout: QOS server app client time out: app likely panicked";
+            eprintln!("{msg}");
+            return Err(Status::internal(msg));
+        }
         other => {
             return Err(Status::internal(format!(
-                "Expected a ProtocolMsg::ProxyResponse but got {:?}",
-                other
+                "Expected a ProtocolMsg::ProxyResponse but got {other:?}"
             )));
         }
     };
 
     Resp::decode(&*encoded_app_response)
-        .map_err(|e| Status::internal(format!("Failed to deserialize enclave response: {:?}", e)))
+        .map_err(|e| Status::internal(format!("Failed to deserialize enclave response: {e:?}")))
 }
 
 /// A default timeout for hosts to configure their qos protocol socket client with.
-pub fn enclave_client_timeout() -> TimeVal {
-    TimeVal::seconds(ENCLAVE_APP_SOCKET_CLIENT_TIMEOUT_SECS * 2)
+pub const fn enclave_client_timeout() -> Duration {
+    qos_core::protocol::INITIAL_CLIENT_TIMEOUT
 }

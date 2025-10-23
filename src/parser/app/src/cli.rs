@@ -3,7 +3,7 @@ use qos_core::{
     EPHEMERAL_KEY_FILE, SEC_APP_SOCK,
     cli::{EPHEMERAL_FILE_OPT, USOCK},
     handles::EphemeralKeyHandle,
-    io::SocketAddress,
+    io::{SocketAddress, StreamPool},
     parser::{GetParserForOptions, OptionsParser, Parser, Token},
     server::SocketServer,
 };
@@ -22,8 +22,15 @@ impl ParserOpts {
         Self { parsed }
     }
 
-    fn addr(&self) -> SocketAddress {
-        SocketAddress::new_unix(self.parsed.single(USOCK).expect("Unix socket is required"))
+    /// Create a new `StreamPool` using the list of `SocketAddress` for the app
+    fn enclave_pool(&self) -> Result<StreamPool, qos_core::io::IOError> {
+        if let Some(u) = self.parsed.single(USOCK) {
+            let address = SocketAddress::new_unix(u);
+
+            StreamPool::new(address, 1)
+        } else {
+            panic!("Invalid socket opts")
+        }
     }
 
     fn ephemeral_file(&self) -> String {
@@ -63,7 +70,7 @@ impl Cli {
     /// # Panics
     ///
     /// Panics if the socket server cannot start
-    pub fn execute() {
+    pub async fn execute() {
         let mut args: Vec<String> = std::env::args().collect();
 
         let opts = ParserOpts::new(&mut args);
@@ -77,7 +84,17 @@ impl Cli {
                 crate::service::Processor::new(EphemeralKeyHandle::new(opts.ephemeral_file()));
 
             println!("---- Starting Parser server -----");
-            SocketServer::listen(opts.addr(), processor).expect("unable to start Parser server");
+            let _server = SocketServer::listen_all(
+                opts.enclave_pool().expect("unable to create enclave pool"),
+                &processor,
+            )
+            .expect("unable to start Parser server");
+
+            match tokio::signal::ctrl_c().await {
+                Ok(()) => eprintln!("handling ctrl+c the tokio way"),
+
+                Err(err) => panic!("{err}"),
+            }
         }
     }
 }

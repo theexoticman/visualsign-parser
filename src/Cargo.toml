@@ -30,14 +30,14 @@ incremental = true
 
 [workspace.dependencies]
 # See https://doc.rust-lang.org/nightly/cargo/reference/workspaces.html#the-dependencies-table
-qos_client = { git = "https://github.com/tkhq/qos.git", rev = "c7f99535bf6c1799e400d9dfa3ad000690896af2", default-features = false }
-qos_core = { git = "https://github.com/tkhq/qos.git", rev = "c7f99535bf6c1799e400d9dfa3ad000690896af2", default-features = false }
-qos_crypto = { git = "https://github.com/tkhq/qos.git", rev = "c7f99535bf6c1799e400d9dfa3ad000690896af2", default-features = false }
-qos_hex = { git = "https://github.com/tkhq/qos.git", rev = "c7f99535bf6c1799e400d9dfa3ad000690896af2", default-features = false }
-qos_net = { git = "https://github.com/tkhq/qos.git", rev = "c7f99535bf6c1799e400d9dfa3ad000690896af2", default-features = false }
-qos_nsm = { git = "https://github.com/tkhq/qos.git", rev = "c7f99535bf6c1799e400d9dfa3ad000690896af2", default-features = false }
-qos_p256 = { git = "https://github.com/tkhq/qos.git", rev = "c7f99535bf6c1799e400d9dfa3ad000690896af2", default-features = false }
-qos_test_primitives = { git = "https://github.com/tkhq/qos.git", rev = "c7f99535bf6c1799e400d9dfa3ad000690896af2", default-features = false }
+qos_client = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
+qos_core = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
+qos_crypto = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
+qos_hex = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
+qos_net = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
+qos_nsm = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
+qos_p256 = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
+qos_test_primitives = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
 
 # Common dependencies
 base64 = "0.22.1"
@@ -45,6 +45,8 @@ hex = "0.4.3"
 
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
+
+tokio = { version = "1.43.1", default-features = false }
 
 tracing = "0.1.41"
 
