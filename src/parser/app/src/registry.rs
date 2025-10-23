@@ -19,6 +19,10 @@ pub fn create_registry() -> visualsign::registry::TransactionConverterRegistry {
         visualsign::registry::Chain::Sui,
         visualsign_sui::SuiVisualSignConverter,
     );
+    registry.register::<visualsign_tron::TronTransactionWrapper, _>(
+        visualsign::registry::Chain::Tron,
+        visualsign_tron::TronVisualSignConverter,
+    );
     registry.register::<visualsign_unspecified::UnspecifiedTransactionWrapper, _>(
         visualsign::registry::Chain::Unspecified,
         visualsign_unspecified::UnspecifiedVisualSignConverter,

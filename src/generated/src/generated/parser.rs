@@ -189,6 +189,7 @@ pub enum Chain {
     Ethereum = 2,
     Solana = 3,
     Sui = 4,
+    Tron = 5,
     /// Custom for extensibility
     Custom = 999,
 }
@@ -204,6 +205,7 @@ impl Chain {
             Chain::Ethereum => "CHAIN_ETHEREUM",
             Chain::Solana => "CHAIN_SOLANA",
             Chain::Sui => "CHAIN_SUI",
+            Chain::Tron => "CHAIN_TRON",
             Chain::Custom => "CHAIN_CUSTOM",
         }
     }
@@ -215,6 +217,7 @@ impl Chain {
             "CHAIN_ETHEREUM" => Some(Self::Ethereum),
             "CHAIN_SOLANA" => Some(Self::Solana),
             "CHAIN_SUI" => Some(Self::Sui),
+            "CHAIN_TRON" => Some(Self::Tron),
             "CHAIN_CUSTOM" => Some(Self::Custom),
             _ => None,
         }
