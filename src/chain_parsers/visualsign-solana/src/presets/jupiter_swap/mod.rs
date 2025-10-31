@@ -71,10 +71,7 @@ impl JupiterSwapInstruction {
             data[len - 4],
             data[len - 3],
         ]);
-        let slippage_bps = u16::from_le_bytes([
-            data[len - 2],
-            data[len - 1],
-        ]);
+        let slippage_bps = u16::from_le_bytes([data[len - 2], data[len - 1]]);
 
         Ok((in_amount, out_amount, slippage_bps))
     }
@@ -186,7 +183,8 @@ fn parse_route_instruction(
     data: &[u8],
     accounts: &[String],
 ) -> Result<JupiterSwapInstruction, &'static str> {
-    let (in_amount, out_amount, slippage_bps) = JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
+    let (in_amount, out_amount, slippage_bps) =
+        JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
 
     let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
     let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
@@ -202,7 +200,8 @@ fn parse_exact_out_route_instruction(
     data: &[u8],
     accounts: &[String],
 ) -> Result<JupiterSwapInstruction, &'static str> {
-    let (in_amount, out_amount, slippage_bps) = JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
+    let (in_amount, out_amount, slippage_bps) =
+        JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
 
     let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
     let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
@@ -218,7 +217,8 @@ fn parse_shared_accounts_route_instruction(
     data: &[u8],
     accounts: &[String],
 ) -> Result<JupiterSwapInstruction, &'static str> {
-    let (in_amount, out_amount, slippage_bps) = JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
+    let (in_amount, out_amount, slippage_bps) =
+        JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
 
     let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
     let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
