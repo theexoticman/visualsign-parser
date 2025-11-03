@@ -32,7 +32,7 @@ jobs:
       - name: Check for username in .cla-signed-users
         id: check_user
         run: |
-          if grep -q -w "${{ github.event.pull_request.user.login }}" .cla-signed-users; then
+          if grep -v '^#' .cla-signed-users | grep -q -w "${{ github.event.pull_request.user.login }}"; then
             echo "✅ User found in .cla-signed-users file."
             echo "is_signed=true" >> $GITHUB_OUTPUT
           else
