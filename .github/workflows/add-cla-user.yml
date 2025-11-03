@@ -90,7 +90,7 @@ jobs:
           echo "Adding ${AUTHOR_USERNAME} to .cla-signed-users"
 
           # Check if user is already in the list on main branch
-          if grep -q -w "$AUTHOR_USERNAME" .cla-signed-users; then
+          if grep -v '^#' .cla-signed-users | grep -q -w "$AUTHOR_USERNAME"; then
             echo "User is already in the list."
             gh pr comment ${{ github.event.issue.number }} --body "ℹ️ @${AUTHOR_USERNAME} is already in the CLA signers list."
             exit 0
@@ -111,7 +111,7 @@ jobs:
           fi
 
           # Check if user is already in the batch branch
-          if grep -q -w "$AUTHOR_USERNAME" .cla-signed-users; then
+          if grep -v '^#' .cla-signed-users | grep -q -w "$AUTHOR_USERNAME"; then
             echo "User is already in the batch branch."
             gh pr comment ${{ github.event.issue.number }} --body "ℹ️ @${AUTHOR_USERNAME} is already pending approval in the CLA signers batch."
             exit 0
