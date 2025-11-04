@@ -38,6 +38,24 @@ SignablePayload {
         },
         TextV2 {
             common: SignablePayloadFieldCommon {
+                fallback_text: "0.000000001722539144 ETH",
+                label: "Max Fee Per Gas",
+            },
+            text_v2: SignablePayloadFieldTextV2 {
+                text: "0.000000001722539144 ETH",
+            },
+        },
+        TextV2 {
+            common: SignablePayloadFieldCommon {
+                fallback_text: "0.000000000000064826 ETH",
+                label: "Max Priority Fee Per Gas",
+            },
+            text_v2: SignablePayloadFieldTextV2 {
+                text: "0.000000000000064826 ETH",
+            },
+        },
+        TextV2 {
+            common: SignablePayloadFieldCommon {
                 fallback_text: "502",
                 label: "Nonce",
             },
