@@ -44,6 +44,53 @@ fn format_gwei(wei: u128) -> String {
     trim_trailing_zeros(format_units(wei_u256, "gwei").unwrap_or_else(|_| wei.to_string()))
 }
 
+// Helper function to extract gas price from different transaction types
+fn extract_gas_price(transaction: &TypedTransaction) -> u128 {
+    match transaction {
+        TypedTransaction::Legacy(tx) => tx.gas_price,
+        TypedTransaction::Eip2930(tx) => tx.gas_price,
+        TypedTransaction::Eip1559(tx) => tx.max_fee_per_gas,
+        TypedTransaction::Eip4844(tx) => match tx {
+            alloy_consensus::TxEip4844Variant::TxEip4844(inner_tx) => inner_tx.max_fee_per_gas,
+            alloy_consensus::TxEip4844Variant::TxEip4844WithSidecar(sidecar_tx) => {
+                sidecar_tx.tx.max_fee_per_gas
+            }
+        },
+        TypedTransaction::Eip7702(tx) => tx.max_fee_per_gas,
+    }
+}
+
+// Helper function to extract priority fee from transaction types that support it
+fn extract_priority_fee(transaction: &TypedTransaction) -> Option<u128> {
+    match transaction {
+        TypedTransaction::Eip1559(tx) => Some(tx.max_priority_fee_per_gas),
+        TypedTransaction::Eip4844(tx) => match tx {
+            alloy_consensus::TxEip4844Variant::TxEip4844(inner_tx) => {
+                Some(inner_tx.max_priority_fee_per_gas)
+            }
+            alloy_consensus::TxEip4844Variant::TxEip4844WithSidecar(sidecar_tx) => {
+                Some(sidecar_tx.tx.max_priority_fee_per_gas)
+            }
+        },
+        TypedTransaction::Eip7702(tx) => Some(tx.max_priority_fee_per_gas),
+        TypedTransaction::Legacy(_) | TypedTransaction::Eip2930(_) => None,
+    }
+}
+
+// Helper function to create priority fee field
+fn create_priority_fee_field(max_priority_fee_per_gas: u128) -> SignablePayloadField {
+    let priority_fee_text = format!("{} gwei", format_gwei(max_priority_fee_per_gas));
+    SignablePayloadField::TextV2 {
+        common: SignablePayloadFieldCommon {
+            fallback_text: priority_fee_text.clone(),
+            label: "Max Priority Fee Per Gas".to_string(),
+        },
+        text_v2: SignablePayloadFieldTextV2 {
+            text: priority_fee_text,
+        },
+    }
+}
+
 /// Wrapper around Alloy's transaction type that implements the Transaction trait
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct EthereumTransactionWrapper {
@@ -221,28 +268,7 @@ fn convert_to_visual_sign_payload(
     ]);
 
     // Handle gas pricing based on transaction type
-    let gas_price_text = match &transaction {
-        TypedTransaction::Legacy(tx) => {
-            format!("{} gwei", format_gwei(tx.gas_price))
-        }
-        TypedTransaction::Eip2930(tx) => {
-            format!("{} gwei", format_gwei(tx.gas_price))
-        }
-        TypedTransaction::Eip1559(tx) => {
-            format!("{} gwei", format_gwei(tx.max_fee_per_gas))
-        }
-        TypedTransaction::Eip4844(tx) => match tx {
-            alloy_consensus::TxEip4844Variant::TxEip4844(inner_tx) => {
-                format!("{} gwei", format_gwei(inner_tx.max_fee_per_gas))
-            }
-            alloy_consensus::TxEip4844Variant::TxEip4844WithSidecar(sidecar_tx) => {
-                format!("{} gwei", format_gwei(sidecar_tx.tx.max_fee_per_gas))
-            }
-        },
-        TypedTransaction::Eip7702(tx) => {
-            format!("{} gwei", format_gwei(tx.max_fee_per_gas))
-        }
-    };
+    let gas_price_text = format!("{} gwei", format_gwei(extract_gas_price(&transaction)));
 
     fields.push(SignablePayloadField::TextV2 {
         common: SignablePayloadFieldCommon {
@@ -255,62 +281,8 @@ fn convert_to_visual_sign_payload(
     });
 
     // Add priority fee for EIP-1559, EIP-4844, and EIP-7702 transactions
-    match &transaction {
-        TypedTransaction::Eip1559(tx) => {
-            let priority_fee_text = format!("{} gwei", format_gwei(tx.max_priority_fee_per_gas));
-            fields.push(SignablePayloadField::TextV2 {
-                common: SignablePayloadFieldCommon {
-                    fallback_text: priority_fee_text.clone(),
-                    label: "Max Priority Fee Per Gas".to_string(),
-                },
-                text_v2: SignablePayloadFieldTextV2 {
-                    text: priority_fee_text,
-                },
-            });
-        }
-        TypedTransaction::Eip4844(tx) => match tx {
-            alloy_consensus::TxEip4844Variant::TxEip4844(inner_tx) => {
-                let priority_fee_text =
-                    format!("{} gwei", format_gwei(inner_tx.max_priority_fee_per_gas));
-                fields.push(SignablePayloadField::TextV2 {
-                    common: SignablePayloadFieldCommon {
-                        fallback_text: priority_fee_text.clone(),
-                        label: "Max Priority Fee Per Gas".to_string(),
-                    },
-                    text_v2: SignablePayloadFieldTextV2 {
-                        text: priority_fee_text,
-                    },
-                });
-            }
-            alloy_consensus::TxEip4844Variant::TxEip4844WithSidecar(sidecar_tx) => {
-                let priority_fee_text = format!(
-                    "{} gwei",
-                    format_gwei(sidecar_tx.tx.max_priority_fee_per_gas)
-                );
-                fields.push(SignablePayloadField::TextV2 {
-                    common: SignablePayloadFieldCommon {
-                        fallback_text: priority_fee_text.clone(),
-                        label: "Max Priority Fee Per Gas".to_string(),
-                    },
-                    text_v2: SignablePayloadFieldTextV2 {
-                        text: priority_fee_text,
-                    },
-                });
-            }
-        },
-        TypedTransaction::Eip7702(tx) => {
-            let priority_fee_text = format!("{} gwei", format_gwei(tx.max_priority_fee_per_gas));
-            fields.push(SignablePayloadField::TextV2 {
-                common: SignablePayloadFieldCommon {
-                    fallback_text: priority_fee_text.clone(),
-                    label: "Max Priority Fee Per Gas".to_string(),
-                },
-                text_v2: SignablePayloadFieldTextV2 {
-                    text: priority_fee_text,
-                },
-            });
-        }
-        _ => {} // Legacy and EIP-2930 don't have priority fees
+    if let Some(priority_fee) = extract_priority_fee(&transaction) {
+        fields.push(create_priority_fee_field(priority_fee));
     }
 
     fields.push(SignablePayloadField::TextV2 {
