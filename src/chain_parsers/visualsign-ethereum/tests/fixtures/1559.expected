@@ -38,20 +38,20 @@ SignablePayload {
         },
         TextV2 {
             common: SignablePayloadFieldCommon {
-                fallback_text: "0.000000001722539144 ETH",
-                label: "Max Fee Per Gas",
+                fallback_text: "1.722539144 gwei",
+                label: "Gas Price",
             },
             text_v2: SignablePayloadFieldTextV2 {
-                text: "0.000000001722539144 ETH",
+                text: "1.722539144 gwei",
             },
         },
         TextV2 {
             common: SignablePayloadFieldCommon {
-                fallback_text: "0.000000000000064826 ETH",
+                fallback_text: "0.000064826 gwei",
                 label: "Max Priority Fee Per Gas",
             },
             text_v2: SignablePayloadFieldTextV2 {
-                text: "0.000000000000064826 ETH",
+                text: "0.000064826 gwei",
             },
         },
         TextV2 {
