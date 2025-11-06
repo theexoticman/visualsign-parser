@@ -1,0 +1,171 @@
+{
+  "description": "Jupiter Route swap - WSOL to USDT swap transaction",
+  "source": "https://solscan.io/tx/441ttot8CzpgsiRHvAHnNTCBwbSnPuhuy43pCjzZU9BKwBuJeW8f4TMU7FYLeqBst6WJeMEHprdQxr4thxqZSxRs",
+  "signature": "441ttot8CzpgsiRHvAHnNTCBwbSnPuhuy43pCjzZU9BKwBuJeW8f4TMU7FYLeqBst6WJeMEHprdQxr4thxqZSxRs",
+  "cluster": "mainnet-beta",
+  "full_transaction_note": "This transaction has 6 instructions: [0-3] Token account setup, [4] Jupiter Route swap, [5] Close account. We're testing instruction [4].",
+  "instruction_index": 4,
+  "instruction_data": "8gKxDaCUhQVtYEpLAEXpKEYshjkYgM8mjv4s27FCdzQSyLQUbmy",
+  "program_id": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+  "accounts": [
+    {
+      "pubkey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "signer": false,
+      "writable": false,
+      "description": "Token program"
+    },
+    {
+      "pubkey": "B7hSadyLX8YhNT8RDcK8RbnR3KAfX4HbWvV89XmeqitA",
+      "signer": true,
+      "writable": false,
+      "description": "User wallet"
+    },
+    {
+      "pubkey": "3c5JEJ3un3HZAtWvZ77nhNGxDGqmWM7uZ1cx4bGDsKE8",
+      "signer": false,
+      "writable": false,
+      "description": "User source token account"
+    },
+    {
+      "pubkey": "FAXnNWMXbadmfMTfWtEu3WDymtRwsxYLGdbKoJbfLKsK",
+      "signer": false,
+      "writable": false,
+      "description": "User destination token account"
+    },
+    {
+      "pubkey": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+      "signer": false,
+      "writable": false,
+      "description": "Jupiter program"
+    },
+    {
+      "pubkey": "Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk",
+      "signer": false,
+      "writable": false,
+      "description": "Jupiter authority"
+    },
+    {
+      "pubkey": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+      "signer": false,
+      "writable": false,
+      "description": "Jupiter program"
+    },
+    {
+      "pubkey": "D8cy77BBepLMngZx6ZukaTff5hCt1HrWyKk3Hnd9oitf",
+      "signer": false,
+      "writable": false,
+      "description": "Event authority"
+    },
+    {
+      "pubkey": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+      "signer": false,
+      "writable": false,
+      "description": "Jupiter program"
+    },
+    {
+      "pubkey": "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
+      "signer": false,
+      "writable": false,
+      "description": "Whirlpool program"
+    },
+    {
+      "pubkey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "signer": false,
+      "writable": false,
+      "description": "Token program"
+    },
+    {
+      "pubkey": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "signer": false,
+      "writable": false,
+      "description": "Token program"
+    },
+    {
+      "pubkey": "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr",
+      "signer": false,
+      "writable": false,
+      "description": "Memo program"
+    },
+    {
+      "pubkey": "B7hSadyLX8YhNT8RDcK8RbnR3KAfX4HbWvV89XmeqitA",
+      "signer": true,
+      "writable": false,
+      "description": "User wallet"
+    },
+    {
+      "pubkey": "CCifuNxNLBZV9ch94GQ4QgdrmbBdG13xDfReomzqvhMC",
+      "signer": false,
+      "writable": false,
+      "description": "Account 14"
+    },
+    {
+      "pubkey": "So11111111111111111111111111111111111111112",
+      "signer": false,
+      "writable": false,
+      "description": "Wrapped SOL"
+    },
+    {
+      "pubkey": "Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk",
+      "signer": false,
+      "writable": false,
+      "description": "Jupiter authority"
+    },
+    {
+      "pubkey": "3c5JEJ3un3HZAtWvZ77nhNGxDGqmWM7uZ1cx4bGDsKE8",
+      "signer": false,
+      "writable": false,
+      "description": "User source token account"
+    },
+    {
+      "pubkey": "4iBF54K8AY5dbwFZL8JBktqDrRvAnEkBs42aSRDYB14p",
+      "signer": false,
+      "writable": false,
+      "description": "Account 18"
+    },
+    {
+      "pubkey": "FAXnNWMXbadmfMTfWtEu3WDymtRwsxYLGdbKoJbfLKsK",
+      "signer": false,
+      "writable": false,
+      "description": "User destination token account"
+    },
+    {
+      "pubkey": "3YYrbiosq79pthXhFV8MwXThXWgb4Wn85fMiqPoo8dq4",
+      "signer": false,
+      "writable": false,
+      "description": "Account 20"
+    },
+    {
+      "pubkey": "FdV51SZanY1thtYtseN5enYiASp78r7gtEcTo3xxg1eS",
+      "signer": false,
+      "writable": false,
+      "description": "Account 21"
+    },
+    {
+      "pubkey": "4ThAi4HvBnXpgjBs5BDUQHosHjqMc1G6b9L88Djq1Ue8",
+      "signer": false,
+      "writable": false,
+      "description": "Account 22"
+    },
+    {
+      "pubkey": "EHmLbEKVdix9brJJ13ey5o3VHo2f8w8Rr5NEwhBtHrrT",
+      "signer": false,
+      "writable": false,
+      "description": "Account 23"
+    },
+    {
+      "pubkey": "68sWwn3c2exPMnAGe2STD3LFAc97bVBvGaGCHSEctK1",
+      "signer": false,
+      "writable": false,
+      "description": "Account 24"
+    }
+  ],
+  "expected_fields": {
+    "program_id": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
+    "input_amount": "1704961004145737728",
+    "quoted_output_amount": "54975581388800",
+    "input_token_address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "output_token_address": "B7hSadyLX8YhNT8RDcK8RbnR3KAfX4HbWvV89XmeqitA",
+    "slippage": "50",
+    "raw_data": "e517cb977ae3ad2a010000002f010064000180841e00000000003da9170000000000320000"
+  }
+}
