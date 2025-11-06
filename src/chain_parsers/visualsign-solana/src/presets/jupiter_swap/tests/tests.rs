@@ -152,68 +152,73 @@ fn test_route_real_transaction() {
                 .unwrap_or_else(|| panic!("Expected field '{}' is not a string", key));
 
             if let Some(expanded) = &preview_layout.expanded {
-                let found = expanded.fields.iter().any(|field| {
-                    match &field.signable_payload_field {
-                        SignablePayloadField::TextV2 { common, text_v2 } => {
-                            let label_normalized = common.label.to_lowercase().replace(" ", "_");
-                            let key_normalized = key.to_lowercase();
-                            let label_matches = label_normalized == key_normalized;
-                            let value_matches = text_v2.text == expected_str;
+                let found =
+                    expanded
+                        .fields
+                        .iter()
+                        .any(|field| match &field.signable_payload_field {
+                            SignablePayloadField::TextV2 { common, text_v2 } => {
+                                let label_normalized =
+                                    common.label.to_lowercase().replace(" ", "_");
+                                let key_normalized = key.to_lowercase();
+                                let label_matches = label_normalized == key_normalized;
+                                let value_matches = text_v2.text == expected_str;
 
-                            if label_matches {
-                                if value_matches {
-                                    println!("✓ {}: {} (matches)", key, expected_str);
-                                } else {
-                                    println!(
-                                        "✗ {}: expected '{}', got '{}'",
-                                        key, expected_str, text_v2.text
-                                    );
+                                if label_matches {
+                                    if value_matches {
+                                        println!("✓ {}: {} (matches)", key, expected_str);
+                                    } else {
+                                        println!(
+                                            "✗ {}: expected '{}', got '{}'",
+                                            key, expected_str, text_v2.text
+                                        );
+                                    }
+                                    return value_matches;
                                 }
-                                return value_matches;
+                                false
                             }
-                            false
-                        }
-                        SignablePayloadField::Number { common, number } => {
-                            let label_normalized = common.label.to_lowercase().replace(" ", "_");
-                            let key_normalized = key.to_lowercase();
-                            let label_matches = label_normalized == key_normalized;
-                            let value_matches = number.number == expected_str;
+                            SignablePayloadField::Number { common, number } => {
+                                let label_normalized =
+                                    common.label.to_lowercase().replace(" ", "_");
+                                let key_normalized = key.to_lowercase();
+                                let label_matches = label_normalized == key_normalized;
+                                let value_matches = number.number == expected_str;
 
-                            if label_matches {
-                                if value_matches {
-                                    println!("✓ {}: {} (matches)", key, expected_str);
-                                } else {
-                                    println!(
-                                        "✗ {}: expected '{}', got '{}'",
-                                        key, expected_str, number.number
-                                    );
+                                if label_matches {
+                                    if value_matches {
+                                        println!("✓ {}: {} (matches)", key, expected_str);
+                                    } else {
+                                        println!(
+                                            "✗ {}: expected '{}', got '{}'",
+                                            key, expected_str, number.number
+                                        );
+                                    }
+                                    return value_matches;
                                 }
-                                return value_matches;
+                                false
                             }
-                            false
-                        }
-                        SignablePayloadField::AmountV2 { common, amount_v2 } => {
-                            let label_normalized = common.label.to_lowercase().replace(" ", "_");
-                            let key_normalized = key.to_lowercase();
-                            let label_matches = label_normalized == key_normalized;
-                            let value_matches = amount_v2.amount == expected_str;
+                            SignablePayloadField::AmountV2 { common, amount_v2 } => {
+                                let label_normalized =
+                                    common.label.to_lowercase().replace(" ", "_");
+                                let key_normalized = key.to_lowercase();
+                                let label_matches = label_normalized == key_normalized;
+                                let value_matches = amount_v2.amount == expected_str;
 
-                            if label_matches {
-                                if value_matches {
-                                    println!("✓ {}: {} (matches)", key, expected_str);
-                                } else {
-                                    println!(
-                                        "✗ {}: expected '{}', got '{}'",
-                                        key, expected_str, amount_v2.amount
-                                    );
+                                if label_matches {
+                                    if value_matches {
+                                        println!("✓ {}: {} (matches)", key, expected_str);
+                                    } else {
+                                        println!(
+                                            "✗ {}: expected '{}', got '{}'",
+                                            key, expected_str, amount_v2.amount
+                                        );
+                                    }
+                                    return value_matches;
                                 }
-                                return value_matches;
+                                false
                             }
-                            false
-                        }
-                        _ => false,
-                    }
-                });
+                            _ => false,
+                        });
 
                 if !found {
                     println!("✗ {}: field not found in output", key);
