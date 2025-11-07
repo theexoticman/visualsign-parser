@@ -201,7 +201,7 @@ fn parse_route_instruction(
         JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
 
     let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
-    let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
+    let out_token = accounts.get(5).map(|addr| get_token_info(addr, out_amount));
 
     Ok(JupiterSwapInstruction::Route {
         in_token,
@@ -219,7 +219,7 @@ fn parse_exact_out_route_instruction(
         JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
 
     let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
-    let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
+    let out_token = accounts.get(5).map(|addr| get_token_info(addr, out_amount));
 
     Ok(JupiterSwapInstruction::ExactOutRoute {
         in_token,
@@ -237,7 +237,7 @@ fn parse_shared_accounts_route_instruction(
         JupiterSwapInstruction::parse_amounts_and_slippage_from_data(data)?;
 
     let in_token = accounts.first().map(|addr| get_token_info(addr, in_amount));
-    let out_token = accounts.get(1).map(|addr| get_token_info(addr, out_amount));
+    let out_token = accounts.get(5).map(|addr| get_token_info(addr, out_amount));
 
     Ok(JupiterSwapInstruction::SharedAccountsRoute {
         in_token,
@@ -349,8 +349,7 @@ fn create_jupiter_swap_expanded_fields(
                         .map_err(|e| VisualSignError::ConversionError(e.to_string()))?,
                     create_text_field("Input Token Name", &token.name)
                         .map_err(|e| VisualSignError::ConversionError(e.to_string()))?,
-                    create_text_field("Input Token Address", &token.address)
-                        .map_err(|e| VisualSignError::ConversionError(e.to_string()))?,
+                    // TODO: Add back Input Token Address
                 ]);
             }
 

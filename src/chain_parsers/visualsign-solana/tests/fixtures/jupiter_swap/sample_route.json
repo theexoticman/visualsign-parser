@@ -163,7 +163,6 @@
     "program_id": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
     "input_amount": "2000000",
     "quoted_output_amount": "1550653",
-    "input_token_address": "So11111111111111111111111111111111111111112",
     "output_token_address": "Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk",
     "slippage": "50",
     "raw_data": "e517cb977ae3ad2a010000002f010064000180841e00000000003da9170000000000320000"
