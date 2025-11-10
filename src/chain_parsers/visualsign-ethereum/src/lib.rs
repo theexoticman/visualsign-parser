@@ -3,7 +3,7 @@ use alloy_consensus::{Transaction as _, TxType, TypedTransaction};
 use alloy_rlp::{Buf, Decodable};
 use base64::{Engine as _, engine::general_purpose::STANDARD as b64};
 use visualsign::{
-    SignablePayload, SignablePayloadField, SignablePayloadFieldAddress,
+    SignablePayload, SignablePayloadField, SignablePayloadFieldAddressV2,
     SignablePayloadFieldAmountV2, SignablePayloadFieldCommon, SignablePayloadFieldTextV2,
     encodings::SupportedEncodings,
     vsptrait::{
@@ -220,14 +220,17 @@ fn convert_to_visual_sign_payload(
         text_v2: SignablePayloadFieldTextV2 { text: chain_name },
     }];
     if let Some(to) = transaction.to() {
-        fields.push(SignablePayloadField::Address {
+        fields.push(SignablePayloadField::AddressV2 {
             common: SignablePayloadFieldCommon {
                 fallback_text: to.to_string(),
                 label: "To".to_string(),
             },
-            address: SignablePayloadFieldAddress {
+            address_v2: SignablePayloadFieldAddressV2 {
                 address: to.to_string(),
                 name: "To".to_string(),
+                asset_label: "Test Asset".to_string(),
+                memo: None,
+                badge_text: None,
             },
         });
     }
@@ -339,6 +342,7 @@ mod tests {
     use super::*;
     use alloy_consensus::{SignableTransaction, TxLegacy, TypedTransaction};
     use alloy_primitives::{Address, Bytes, ChainId, U256};
+    use visualsign::SignablePayloadFieldAddressV2;
 
     fn unsigned_to_hex(tx: &TypedTransaction) -> String {
         let mut encoded = Vec::new();
@@ -739,14 +743,17 @@ mod tests {
                             text: "Ethereum Mainnet".to_string(),
                         },
                     },
-                    SignablePayloadField::Address {
+                    SignablePayloadField::AddressV2 {
                         common: SignablePayloadFieldCommon {
                             fallback_text: "0x0000000000000000000000000000000000000000".to_string(),
                             label: "To".to_string(),
                         },
-                        address: SignablePayloadFieldAddress {
+                        address_v2: SignablePayloadFieldAddressV2 {
                             address: "0x0000000000000000000000000000000000000000".to_string(),
                             name: "To".to_string(),
+                            asset_label: "Test Asset".to_string(),
+                            memo: None,
+                            badge_text: None,
                         },
                     },
                     SignablePayloadField::AmountV2 {
