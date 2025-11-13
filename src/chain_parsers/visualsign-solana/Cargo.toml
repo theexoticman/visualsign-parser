@@ -6,7 +6,8 @@ edition = "2024"
 [dependencies]
 
 tracing = { workspace = true }
-solana_parser = { git = "https://github.com/tkhq/solana-parser.git" }
+# After https://github.com/tkhq/solana-parser/pull/13 was merged we found that it was looking at files directly which breaks tests but seems to work in the enclave?
+solana_parser = { git = "https://github.com/tkhq/solana-parser.git", rev = "9a88e3ef889232a5c1bf903f93f3b3fbfdcd69c8" }
 visualsign = { workspace = true }
 hex = "0.4.3"
 base64 = "0.22.1"

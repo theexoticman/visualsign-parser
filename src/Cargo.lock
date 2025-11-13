@@ -9866,7 +9866,7 @@ dependencies = [
 [[package]]
 name = "solana_parser"
 version = "0.1.0"
-source = "git+https://github.com/tkhq/solana-parser.git#9a038e8fd7176d397d98c003dec431a7be112cbc"
+source = "git+https://github.com/tkhq/solana-parser.git?rev=9a88e3ef889232a5c1bf903f93f3b3fbfdcd69c8#9a88e3ef889232a5c1bf903f93f3b3fbfdcd69c8"
 dependencies = [
  "bincode",
  "bs58 0.5.1",
