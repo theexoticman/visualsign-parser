@@ -87,6 +87,7 @@ impl Cli {
         let options = VisualSignOptions {
             decode_transfers: true,
             transaction_name: None,
+            metadata: None,
         };
 
         parse_and_display(chain, raw_tx, options, output_format);

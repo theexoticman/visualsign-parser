@@ -502,6 +502,7 @@ mod tests {
         let options = VisualSignOptions {
             decode_transfers: false,
             transaction_name: Some("Custom Transaction Title".to_string()),
+            metadata: None,
         };
         let payload = transaction_to_visual_sign(tx, options).unwrap();
 
@@ -727,6 +728,7 @@ mod tests {
                 VisualSignOptions {
                     decode_transfers: true,
                     transaction_name: Some("Test Transaction".to_string()),
+                    metadata: None,
                 }
             ),
             Ok(SignablePayload::new(

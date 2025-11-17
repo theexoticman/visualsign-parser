@@ -29,7 +29,7 @@ mod tests {
                 .to_visual_sign_payload(
                     transaction_wrapper,
                     VisualSignOptions {
-                metadata: None,
+                        metadata: None,
                         decode_transfers: true,
                         transaction_name: Some(description.to_string()),
                     },
@@ -85,7 +85,7 @@ mod tests {
             .to_visual_sign_payload(
                 transaction_wrapper,
                 VisualSignOptions {
-                metadata: None,
+                    metadata: None,
                     decode_transfers: true,
                     transaction_name: Some("Unicode Escape Test".to_string()),
                 },

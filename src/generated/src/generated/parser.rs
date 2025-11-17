@@ -71,11 +71,22 @@ pub struct ParseRequest {
     pub unsigned_payload: ::prost::alloc::string::String,
     #[prost(enumeration = "Chain", tag = "2")]
     pub chain: i32,
-    #[prost(oneof = "parse_request::ChainMetadata", tags = "3, 4")]
-    pub chain_metadata: ::core::option::Option<parse_request::ChainMetadata>,
+    #[prost(message, optional, tag = "3")]
+    pub chain_metadata: ::core::option::Option<ChainMetadata>,
 }
-/// Nested message and enum types in `ParseRequest`.
-pub mod parse_request {
+#[cfg_attr(
+    feature = "serde_derive",
+    derive(::serde::Serialize, ::serde::Deserialize),
+    serde(rename_all = "camelCase")
+)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ChainMetadata {
+    #[prost(oneof = "chain_metadata::Metadata", tags = "1, 2")]
+    pub metadata: ::core::option::Option<chain_metadata::Metadata>,
+}
+/// Nested message and enum types in `ChainMetadata`.
+pub mod chain_metadata {
     #[cfg_attr(
         feature = "serde_derive",
         derive(::serde::Serialize, ::serde::Deserialize),
@@ -84,10 +95,10 @@ pub mod parse_request {
     #[cfg_attr(feature = "serde_derive", serde(untagged))]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum ChainMetadata {
-        #[prost(message, tag = "3")]
+    pub enum Metadata {
+        #[prost(message, tag = "1")]
         Ethereum(super::EthereumMetadata),
-        #[prost(message, tag = "4")]
+        #[prost(message, tag = "2")]
         Solana(super::SolanaMetadata),
     }
 }
@@ -115,6 +126,21 @@ pub struct Metadata {
     pub key: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub value: ::prost::alloc::string::String,
+}
+#[cfg_attr(
+    feature = "serde_derive",
+    derive(::serde::Serialize, ::serde::Deserialize),
+    serde(rename_all = "camelCase")
+)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignatureMetadata {
+    /// Signature of content hash (computed over parent content using algorithm specified in metadata)
+    #[prost(string, tag = "1")]
+    pub value: ::prost::alloc::string::String,
+    /// Generic metadata about the signature (e.g., algorithm, issuer, timestamp as key-value pairs)
+    #[prost(message, repeated, tag = "2")]
+    pub metadata: ::prost::alloc::vec::Vec<Metadata>,
 }
 #[cfg_attr(
     feature = "serde_derive",
@@ -165,7 +191,10 @@ pub struct Signature {
 )]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EthereumMetadata {}
+pub struct EthereumMetadata {
+    #[prost(message, optional, tag = "1")]
+    pub abi: ::core::option::Option<Abi>,
+}
 #[cfg_attr(
     feature = "serde_derive",
     derive(::serde::Serialize, ::serde::Deserialize),
@@ -173,7 +202,46 @@ pub struct EthereumMetadata {}
 )]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SolanaMetadata {}
+pub struct SolanaMetadata {
+    #[prost(message, optional, tag = "1")]
+    pub idl: ::core::option::Option<Idl>,
+}
+#[cfg_attr(
+    feature = "serde_derive",
+    derive(::serde::Serialize, ::serde::Deserialize),
+    serde(rename_all = "camelCase")
+)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Abi {
+    /// JSON ABI definition
+    #[prost(string, tag = "1")]
+    pub value: ::prost::alloc::string::String,
+    /// Optional ABI signature with metadata
+    #[prost(message, optional, tag = "2")]
+    pub signature: ::core::option::Option<SignatureMetadata>,
+}
+#[cfg_attr(
+    feature = "serde_derive",
+    derive(::serde::Serialize, ::serde::Deserialize),
+    serde(rename_all = "camelCase")
+)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Idl {
+    /// JSON IDL (Interface Definition Language) definition
+    #[prost(string, tag = "1")]
+    pub value: ::prost::alloc::string::String,
+    /// Type of Solana IDL (e.g., Anchor)
+    #[prost(enumeration = "SolanaIdlType", optional, tag = "2")]
+    pub idl_type: ::core::option::Option<i32>,
+    /// IDL version (e.g., "0.30.0")
+    #[prost(string, optional, tag = "3")]
+    pub idl_version: ::core::option::Option<::prost::alloc::string::String>,
+    /// Optional IDL signature with metadata
+    #[prost(message, optional, tag = "4")]
+    pub signature: ::core::option::Option<SignatureMetadata>,
+}
 /// Chain represents supported blockchain networks
 #[cfg_attr(
     feature = "serde_derive",
@@ -256,6 +324,38 @@ impl SignatureScheme {
             "SIGNATURE_SCHEME_TURNKEY_P256_EPHEMERAL_KEY" => {
                 Some(Self::TurnkeyP256EphemeralKey)
             }
+            _ => None,
+        }
+    }
+}
+#[cfg_attr(
+    feature = "serde_derive",
+    derive(::serde::Serialize, ::serde::Deserialize),
+    serde(rename_all = "camelCase")
+)]
+#[cfg_attr(feature = "serde_derive", serde(untagged))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum SolanaIdlType {
+    Unspecified = 0,
+    Anchor = 1,
+}
+impl SolanaIdlType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            SolanaIdlType::Unspecified => "SOLANA_IDL_TYPE_UNSPECIFIED",
+            SolanaIdlType::Anchor => "SOLANA_IDL_TYPE_ANCHOR",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "SOLANA_IDL_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
+            "SOLANA_IDL_TYPE_ANCHOR" => Some(Self::Anchor),
             _ => None,
         }
     }

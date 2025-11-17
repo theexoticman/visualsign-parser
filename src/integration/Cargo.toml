@@ -45,6 +45,11 @@ bs58 = { version = "0.5.1", default-features = false }
 base64 = "0.22.1"
 tracing-test = "0.2.5"
 
+# for cryptographic signatures in tests
+ed25519 = "2.0"
+sha2 = "0.10"
+hex = { workspace = true }
+
 [dev-dependencies]
 visualsign-solana = { path = "../chain_parsers/visualsign-solana" }
 tracing = { workspace = true }

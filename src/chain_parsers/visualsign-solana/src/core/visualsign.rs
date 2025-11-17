@@ -786,7 +786,7 @@ mod tests {
                 let payload_result = SolanaVisualSignConverter.to_visual_sign_payload(
                     wrapper,
                     VisualSignOptions {
-                metadata: None,
+                        metadata: None,
                         decode_transfers: true,
                         transaction_name: Some("Manual V0 Transfer Test".to_string()),
                     },

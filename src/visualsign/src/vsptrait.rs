@@ -258,6 +258,7 @@ mod tests {
         let options = VisualSignOptions {
             decode_transfers: true,
             transaction_name: Some("Custom Transaction".to_string()),
+            metadata: None,
         };
 
         let result = converter.to_visual_sign_payload(transaction, options);

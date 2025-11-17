@@ -8,8 +8,7 @@
 
 #[cfg(test)]
 mod signature_metadata_validation {
-    use sha2::{Sha256, Digest};
-    use std::collections::HashMap;
+    use sha2::{Digest, Sha256};
 
     /// Simulates the SignatureMetadata structure from proto
     #[derive(Debug, Clone)]
@@ -20,13 +19,15 @@ mod signature_metadata_validation {
 
     #[derive(Debug, Clone)]
     struct SignatureMetadata {
-        value: String, // Signature of content hash
+        value: String,           // Signature of content hash
         metadata: Vec<Metadata>, // Algorithm, issuer, timestamp, etc.
     }
 
     /// Get metadata value by key
     fn get_metadata(sig_metadata: &SignatureMetadata, key: &str) -> Option<String> {
-        sig_metadata.metadata.iter()
+        sig_metadata
+            .metadata
+            .iter()
             .find(|m| m.key == key)
             .map(|m| m.value.clone())
     }
@@ -63,18 +64,33 @@ mod signature_metadata_validation {
         let sig_metadata = SignatureMetadata {
             value: compute_signature(abi_content, "SHA-256"),
             metadata: vec![
-                Metadata { key: "algorithm".to_string(), value: "SHA-256".to_string() },
-                Metadata { key: "issuer".to_string(), value: "0x1234567890abcdef".to_string() },
-                Metadata { key: "timestamp".to_string(), value: "1699779600".to_string() },
+                Metadata {
+                    key: "algorithm".to_string(),
+                    value: "SHA-256".to_string(),
+                },
+                Metadata {
+                    key: "issuer".to_string(),
+                    value: "0x1234567890abcdef".to_string(),
+                },
+                Metadata {
+                    key: "timestamp".to_string(),
+                    value: "1699779600".to_string(),
+                },
             ],
         };
 
         // Verify the signature
-        assert!(verify_signature(abi_content, &sig_metadata), "ABI signature verification failed");
+        assert!(
+            verify_signature(abi_content, &sig_metadata),
+            "ABI signature verification failed"
+        );
 
         // Verify tampering is detected
         let tampered_content = r#"[{"type":"function","name":"approve","inputs":[]}]"#;
-        assert!(!verify_signature(tampered_content, &sig_metadata), "Tampering not detected!");
+        assert!(
+            !verify_signature(tampered_content, &sig_metadata),
+            "Tampering not detected!"
+        );
     }
 
     #[test]
@@ -86,14 +102,26 @@ mod signature_metadata_validation {
         let sig_metadata = SignatureMetadata {
             value: compute_signature(idl_content, "SHA-256"),
             metadata: vec![
-                Metadata { key: "algorithm".to_string(), value: "SHA-256".to_string() },
-                Metadata { key: "issuer".to_string(), value: "ExampleProgramAuthority111111111111".to_string() },
-                Metadata { key: "timestamp".to_string(), value: "1699779600".to_string() },
+                Metadata {
+                    key: "algorithm".to_string(),
+                    value: "SHA-256".to_string(),
+                },
+                Metadata {
+                    key: "issuer".to_string(),
+                    value: "ExampleProgramAuthority111111111111".to_string(),
+                },
+                Metadata {
+                    key: "timestamp".to_string(),
+                    value: "1699779600".to_string(),
+                },
             ],
         };
 
         // Verify the signature
-        assert!(verify_signature(idl_content, &sig_metadata), "IDL signature verification failed");
+        assert!(
+            verify_signature(idl_content, &sig_metadata),
+            "IDL signature verification failed"
+        );
 
         // Verify metadata is NOT part of signature (can change without invalidating signature)
         // This demonstrates that metadata can be modified independently
@@ -102,8 +130,10 @@ mod signature_metadata_validation {
             key: "additional_info".to_string(),
             value: "new_value".to_string(),
         });
-        assert!(verify_signature(idl_content, &modified_sig_metadata),
-            "Adding metadata should not invalidate signature");
+        assert!(
+            verify_signature(idl_content, &modified_sig_metadata),
+            "Adding metadata should not invalidate signature"
+        );
     }
 
     #[test]
@@ -122,13 +152,22 @@ mod signature_metadata_validation {
             let sig_metadata = SignatureMetadata {
                 value: sig.clone(),
                 metadata: vec![
-                    Metadata { key: "algorithm".to_string(), value: "SHA-256".to_string() },
-                    Metadata { key: "content_type".to_string(), value: content_type.to_string() },
+                    Metadata {
+                        key: "algorithm".to_string(),
+                        value: "SHA-256".to_string(),
+                    },
+                    Metadata {
+                        key: "content_type".to_string(),
+                        value: content_type.to_string(),
+                    },
                 ],
             };
 
-            assert!(verify_signature(content, &sig_metadata),
-                "Failed for content type: {}", content_type);
+            assert!(
+                verify_signature(content, &sig_metadata),
+                "Failed for content type: {}",
+                content_type
+            );
             println!("✓ {} signature verified", content_type);
         }
     }
@@ -143,13 +182,16 @@ mod signature_metadata_validation {
 
         let sig_metadata = SignatureMetadata {
             value: compute_signature(original_content, "SHA-256"),
-            metadata: vec![
-                Metadata { key: "algorithm".to_string(), value: "SHA-256".to_string() },
-            ],
+            metadata: vec![Metadata {
+                key: "algorithm".to_string(),
+                value: "SHA-256".to_string(),
+            }],
         };
 
         assert!(verify_signature(original_content, &sig_metadata));
-        assert!(!verify_signature(modified_content, &sig_metadata),
-            "Should detect content modification");
+        assert!(
+            !verify_signature(modified_content, &sig_metadata),
+            "Should detect content modification"
+        );
     }
 }
