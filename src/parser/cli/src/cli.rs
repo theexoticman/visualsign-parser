@@ -2,21 +2,22 @@ use crate::chains;
 use chains::{available_chains, parse_chain};
 use clap::{Arg, Command};
 use parser_app::registry::create_registry;
+use std::fmt::Write;
 use visualsign::vsptrait::VisualSignOptions;
 use visualsign::{SignablePayload, SignablePayloadField};
 
-/// Formats a SignablePayload in a human-readable tree format
+/// Formats a `SignablePayload` in a human-readable tree format
 fn format_human_readable(payload: &SignablePayload) -> String {
     let mut output = String::new();
 
     // Header
-    output.push_str(&format!("┌─ Transaction: {}\n", payload.title));
+    writeln!(&mut output, "┌─ Transaction: {}", payload.title).unwrap();
     if let Some(subtitle) = &payload.subtitle {
-        output.push_str(&format!("│  Subtitle: {}\n", subtitle));
+        writeln!(&mut output, "│  Subtitle: {subtitle}").unwrap();
     }
-    output.push_str(&format!("│  Version: {}\n", payload.version));
+    writeln!(&mut output, "│  Version: {}", payload.version).unwrap();
     if !payload.payload_type.is_empty() {
-        output.push_str(&format!("│  Type: {}\n", payload.payload_type));
+        writeln!(&mut output, "│  Type: {}", payload.payload_type).unwrap();
     }
     output.push_str("│\n");
 
@@ -36,31 +37,51 @@ fn format_human_readable(payload: &SignablePayload) -> String {
 }
 
 /// Formats a single field with tree-like indentation
-fn format_field(field: &SignablePayloadField, output: &mut String, prefix: &str, continuation: &str) {
-
+fn format_field(
+    field: &SignablePayloadField,
+    output: &mut String,
+    prefix: &str,
+    continuation: &str,
+) {
     match field {
         SignablePayloadField::TextV2 { common, text_v2 } => {
-            output.push_str(&format!("{} {}: {}\n", prefix, common.label, text_v2.text));
+            writeln!(output, "{} {}: {}", prefix, common.label, text_v2.text).unwrap();
         }
-        SignablePayloadField::PreviewLayout { common, preview_layout } => {
-            output.push_str(&format!("{} {}\n", prefix, common.label));
+        SignablePayloadField::PreviewLayout {
+            common,
+            preview_layout,
+        } => {
+            writeln!(output, "{} {}", prefix, common.label).unwrap();
 
             if let Some(title) = &preview_layout.title {
-                output.push_str(&format!("{}   Title: {}\n", continuation, title.text));
+                writeln!(output, "{}   Title: {}", continuation, title.text).unwrap();
             }
             if let Some(subtitle) = &preview_layout.subtitle {
-                output.push_str(&format!("{}   Detail: {}\n", continuation, subtitle.text));
+                writeln!(output, "{}   Detail: {}", continuation, subtitle.text).unwrap();
             }
 
             // Condensed view (if present)
             if let Some(condensed_layout) = &preview_layout.condensed {
                 if !condensed_layout.fields.is_empty() {
-                    output.push_str(&format!("{}   📋 Condensed View:\n", continuation));
+                    writeln!(output, "{continuation}   📋 Condensed View:").unwrap();
                     for (i, nested_field) in condensed_layout.fields.iter().enumerate() {
                         let is_last_nested = i == condensed_layout.fields.len() - 1;
-                        let nested_prefix = format!("{}   {}", continuation, if is_last_nested { "└─" } else { "├─" });
-                        let nested_continuation = format!("{}   {}", continuation, if is_last_nested { "   " } else { "│  " });
-                        format_field(&nested_field.signable_payload_field, output, &nested_prefix, &nested_continuation);
+                        let nested_prefix = format!(
+                            "{}   {}",
+                            continuation,
+                            if is_last_nested { "└─" } else { "├─" }
+                        );
+                        let nested_continuation = format!(
+                            "{}   {}",
+                            continuation,
+                            if is_last_nested { "   " } else { "│  " }
+                        );
+                        format_field(
+                            &nested_field.signable_payload_field,
+                            output,
+                            &nested_prefix,
+                            &nested_continuation,
+                        );
                     }
                 }
             }
@@ -68,41 +89,61 @@ fn format_field(field: &SignablePayloadField, output: &mut String, prefix: &str,
             // Expanded view (if present)
             if let Some(expanded_layout) = &preview_layout.expanded {
                 if !expanded_layout.fields.is_empty() {
-                    output.push_str(&format!("{}   📖 Expanded View:\n", continuation));
+                    writeln!(output, "{continuation}   📖 Expanded View:").unwrap();
                     for (i, nested_field) in expanded_layout.fields.iter().enumerate() {
                         let is_last_nested = i == expanded_layout.fields.len() - 1;
-                        let nested_prefix = format!("{}   {}", continuation, if is_last_nested { "└─" } else { "├─" });
-                        let nested_continuation = format!("{}   {}", continuation, if is_last_nested { "   " } else { "│  " });
-                        format_field(&nested_field.signable_payload_field, output, &nested_prefix, &nested_continuation);
+                        let nested_prefix = format!(
+                            "{}   {}",
+                            continuation,
+                            if is_last_nested { "└─" } else { "├─" }
+                        );
+                        let nested_continuation = format!(
+                            "{}   {}",
+                            continuation,
+                            if is_last_nested { "   " } else { "│  " }
+                        );
+                        format_field(
+                            &nested_field.signable_payload_field,
+                            output,
+                            &nested_prefix,
+                            &nested_continuation,
+                        );
                     }
                 }
             }
         }
         SignablePayloadField::AmountV2 { common, amount_v2 } => {
-            output.push_str(&format!("{} {}: {} {}\n",
+            writeln!(
+                output,
+                "{} {}: {} {}",
                 prefix,
                 common.label,
                 amount_v2.amount,
                 amount_v2.abbreviation.as_deref().unwrap_or("")
-            ));
+            )
+            .unwrap();
         }
         SignablePayloadField::AddressV2 { common, address_v2 } => {
-            output.push_str(&format!("{} {}: {}\n", prefix, common.label, address_v2.address));
+            writeln!(
+                output,
+                "{} {}: {}",
+                prefix, common.label, address_v2.address
+            )
+            .unwrap();
         }
         _ => {
-            output.push_str(&format!("{} {}: {}\n", prefix, "Field", common_label(field)));
+            writeln!(output, "{} Field: {}", prefix, common_label(field)).unwrap();
         }
     }
 }
 
 /// Helper to extract common label from any field type
 fn common_label(field: &SignablePayloadField) -> String {
-
     match field {
-        SignablePayloadField::TextV2 { common, .. } => common.label.clone(),
-        SignablePayloadField::PreviewLayout { common, .. } => common.label.clone(),
-        SignablePayloadField::AmountV2 { common, .. } => common.label.clone(),
-        SignablePayloadField::AddressV2 { common, .. } => common.label.clone(),
+        SignablePayloadField::TextV2 { common, .. }
+        | SignablePayloadField::PreviewLayout { common, .. }
+        | SignablePayloadField::AmountV2 { common, .. }
+        | SignablePayloadField::AddressV2 { common, .. } => common.label.clone(),
         _ => "Unknown".to_string(),
     }
 }
@@ -126,7 +167,7 @@ fn parse_and_display(chain: &str, raw_tx: &str, options: VisualSignOptions, outp
             }
             "human" => {
                 let human_output = format_human_readable(&payload);
-                println!("{}", human_output);
+                println!("{human_output}");
             }
             _ => {
                 eprintln!("Error: Unsupported output format '{output_format}'");
