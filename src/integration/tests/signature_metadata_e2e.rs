@@ -50,6 +50,7 @@ fn sign_with_ed25519(content: &str) -> (String, String) {
     let verifying_key = Ed25519VerifyingKey::from(&signing_key);
 
     let message_hash = hash_content_sha256(content);
+    // Create actual Ed25519 signature using the signing key
     let signature = signing_key.sign(&message_hash);
 
     let signature_hex = hex::encode(signature.to_bytes());
