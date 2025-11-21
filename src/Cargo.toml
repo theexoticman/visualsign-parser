@@ -28,6 +28,12 @@ overflow-checks = true
 panic = 'unwind'
 incremental = true
 
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/anchorageoss/visualsign-parser"
+
 [workspace.dependencies]
 # See https://doc.rust-lang.org/nightly/cargo/reference/workspaces.html#the-dependencies-table
 qos_client = { git = "https://github.com/tkhq/qos.git", rev = "90dec56fc06926b7fb7439175c58789492ec82c6", default-features = false }
