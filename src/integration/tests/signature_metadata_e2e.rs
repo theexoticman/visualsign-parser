@@ -6,14 +6,14 @@ use ed25519_dalek::{SigningKey as Ed25519SigningKey, VerifyingKey as Ed25519Veri
 /// 2. The parser receives and processes it correctly
 /// 3. The signature can be verified by the parser using the metadata algorithm and public key
 use generated::parser::{
-    chain_metadata, Abi, Chain, ChainMetadata, EthereumMetadata, Idl, Metadata, ParseRequest,
-    SignatureMetadata, SolanaIdlType, SolanaMetadata,
+    Abi, Chain, ChainMetadata, EthereumMetadata, Idl, Metadata, ParseRequest, SignatureMetadata,
+    SolanaIdlType, SolanaMetadata, chain_metadata,
 };
-use k256::ecdsa::signature::Signer;
-use k256::ecdsa::signature::Verifier;
+use k256::EncodedPoint;
 use k256::ecdsa::SigningKey;
 use k256::ecdsa::VerifyingKey;
-use k256::EncodedPoint;
+use k256::ecdsa::signature::Signer;
+use k256::ecdsa::signature::Verifier;
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 
